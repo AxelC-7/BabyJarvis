@@ -1,0 +1,6 @@
+.env
+agent_debug.log
+capability_requests.jsonl
+__pycache__/
+*.py[cod]
+diagnostics/
