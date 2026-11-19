@@ -1,0 +1,56 @@
+name: Windows unit tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  unit-tests:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest
+
+      - name: Compile active Python files
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Path . -Recurse -File -Filter *.py |
+            Where-Object {
+              $_.FullName -notmatch '[\\/](recovery|\.git|\.venv|venv|__pycache__)[\\/]'
+            }
+
+          if (-not $files) {
+            throw "No se encontraron archivos Python activos."
+          }
+
+          foreach ($file in $files) {
+            python -m py_compile $file.FullName
+            if ($LASTEXITCODE -ne 0) {
+              throw "Error de compilación: $($file.FullName)"
+            }
+          }
+
+      - name: Run unit tests
+        shell: pwsh
+        run: |
+          python -m pytest tests -q
+          if ($LASTEXITCODE -ne 0) {
+            throw "Las pruebas unitarias fallaron."
+          }
