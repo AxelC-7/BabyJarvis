@@ -4,7 +4,7 @@
 
 Esta sección refleja la implementación más reciente y prevalece sobre las notas históricas de modelos y reintentos que aparecen más abajo.
 
-- Modelo único y fijo: `gemini-3.8-flash`. Se usa para analizar, decidir y verificar; no existe un segundo modelo.
+- Modelo único y fijo: `gemini-3.5-flash`. Se usa para analizar, decidir y verificar; no existe un segundo modelo.
 - Una solicitud por decisión. No hay reintentos automáticos ni fallback a otros modelos; el selector y el barrido de modelos están deshabilitados.
 - Si falla la API, el modelo, el formato de respuesta o la validación de coordenadas, el servicio se detiene, descarta la cola y requiere reiniciar la aplicación.
 - La estrategia actual conserva el orden de Windows: clic con cursor y nueva captura, luego Win+R y, si hace falta, CMD/PowerShell. Los nombres de aplicaciones no están fijados en código; el agente utiliza el nombre solicitado. Esta secuencia deberá abstraerse por plataforma al implementar Linux.
