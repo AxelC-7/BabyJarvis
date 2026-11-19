@@ -25,8 +25,8 @@ def make_context() -> TaskContext:
     )
 
 
-def test_runtime_model_is_fixed_to_gemini_38_flash() -> None:
-    assert FIXED_GEMINI_MODEL == "gemini-3.8-flash"
+def test_runtime_model_is_fixed_to_gemini_35_flash() -> None:
+    assert FIXED_GEMINI_MODEL == "gemini-3.5-flash"
 
 
 def test_first_strategy_requires_a_real_cursor_click() -> None:
