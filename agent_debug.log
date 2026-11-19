@@ -668,3 +668,364 @@ Traceback (most recent call last):
     raise GeminiFatalError(
 gemini_agent.GeminiFatalError: Gemini devolvió una respuesta inválida o coordenadas fuera de la captura (1366x768). Se descarta la respuesta y se detiene todo: Gemini agotó el límite de tokens antes de completar el JSON. La respuesta se descarta íntegramente y no se ejecutan acciones.
 
+2026-11-19 19:10:24 INFO === Inicio de sesión del asistente ===
+2026-11-19 19:10:24 INFO Archivo de registro: C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\agent_debug.log
+2026-11-19 19:10:24 INFO GUI: Archivo de registro persistente: C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\agent_debug.log
+2026-11-19 19:10:24 WARNING Se ignora GEMINI_MODEL=gemini-3.5-flash-lite; BabyJarvis usa exclusivamente gemini-3.5-flash.
+2026-11-19 19:10:29 INFO GUI: Búsqueda de modelos agregada a la cola.
+2026-11-19 19:10:30 INFO GUI: Se encontraron 23 modelos compatibles con generateContent.
+2026-11-19 19:11:15 INFO GUI: Tarea b1773ee3 agregada a la cola.
+2026-11-19 19:11:15 INFO [tarea b1773ee3] ENTRADA DEL USUARIO:
+abre paint
+2026-11-19 19:11:15 INFO [tarea b1773ee3] INICIO DE PROCESAMIENTO: modelo principal=gemini-3.5-flash
+2026-11-19 19:11:15 INFO Inicio de tarea; se omite el texto de la instruccion del registro.
+2026-11-19 19:11:15 INFO GUI: Instrucción agregada a la cola.
+2026-11-19 19:11:15 INFO GUI: ENTRADA DEL USUARIO:
+abre paint
+2026-11-19 19:11:15 INFO GUI: INICIO DE PROCESAMIENTO: modelo principal=gemini-3.5-flash
+2026-11-19 19:11:15 INFO [tarea b1773ee3] Capturando pantalla y consultando a Gemini...
+2026-11-19 19:11:15 INFO GUI: Capturando pantalla y consultando a Gemini...
+2026-11-19 19:11:15 INFO Captura: imagen=1366x768 escritorio=1366x768 origen=(0,0) DPI=per-monitor-v2/96
+2026-11-19 19:11:15 INFO [tarea b1773ee3] Usando exclusivamente Gemini gemini-3.5-flash; sin fallback ni reintentos.
+2026-11-19 19:11:15 INFO Solicitud única a Gemini iniciada: modelo=gemini-3.5-flash
+2026-11-19 19:11:15 INFO GUI: Usando exclusivamente Gemini gemini-3.5-flash; sin fallback ni reintentos.
+2026-11-19 19:12:16 ERROR Fallo definitivo de Gemini: modelo=gemini-3.5-flash tipo=ReadTimeout duracion=60.25s; no habrá reintento ni fallback.
+2026-11-19 19:12:16 ERROR [tarea b1773ee3] Fallo fatal; se detiene el servicio completo:
+GeminiFatalError: Falló la única solicitud a gemini-3.5-flash (ReadTimeout). BabyJarvis se detendrá sin reintentar ni cambiar de modelo.
+TRAZA COMPLETA:
+Traceback (most recent call last):
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx2\_transports\default.py", line 95, in map_httpcore_exceptions
+    yield
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx2\_transports\default.py", line 242, in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpcore2\_sync\connection_pool.py", line 243, in handle_request
+    raise exc from None
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpcore2\_sync\connection_pool.py", line 225, in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpcore2\_sync\connection.py", line 98, in handle_request
+    return self._connection.handle_request(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpcore2\_sync\http11.py", line 125, in handle_request
+    raise exc
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpcore2\_sync\http11.py", line 97, in handle_request
+    ) = self._receive_response_headers(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpcore2\_sync\http11.py", line 167, in _receive_response_headers
+    event = self._receive_event(timeout=timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpcore2\_sync\http11.py", line 200, in _receive_event
+    data = self._network_stream.read(self.READ_NUM_BYTES, timeout=timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpcore2\_backends\sync.py", line 126, in read
+    with map_exceptions(exc_map):
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpcore2\_exceptions.py", line 16, in map_exceptions
+    raise to_exc(exc) from exc
+httpcore2.ReadTimeout: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 336, in _generate_single_model
+    response = _run_api_call(
+               ^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 318, in _run_api_call
+    raise result
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 301, in invoke
+    result_queue.put((True, operation()))
+                            ^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 337, in <lambda>
+    lambda: client.models.generate_content(model=model, contents=contents, config=config),
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\models.py", line 6204, in generate_content
+    response = self._generate_content_with_continuation(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\models.py", line 6045, in _generate_content_with_continuation
+    response = self._generate_content(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\models.py", line 4573, in _generate_content
+    response = self._api_client.request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\_api_client.py", line 2374, in request
+    response = self._request(http_request, http_options, stream=False)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\_api_client.py", line 2150, in _request
+    return self._retry(self._request_once, http_request, stream)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\tenacity\__init__.py", line 470, in __call__
+    do = self.iter(retry_state=retry_state)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\tenacity\__init__.py", line 371, in iter
+    result = action(retry_state)
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\tenacity\__init__.py", line 413, in exc_check
+    raise retry_exc.reraise()
+          ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\tenacity\__init__.py", line 184, in reraise
+    raise self.last_attempt.result()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\concurrent\futures\_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\concurrent\futures\_base.py", line 401, in __get_result
+    raise self._exception
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\tenacity\__init__.py", line 473, in __call__
+    result = fn(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\_api_client.py", line 2126, in _request_once
+    response = self._httpx_client.send(httpx_request, stream=stream)  # type: ignore[union-attr, arg-type]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx2\_client.py", line 974, in send
+    response = self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx2\_client.py", line 1002, in _send_handling_auth
+    response = self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx2\_client.py", line 1037, in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx2\_client.py", line 1070, in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx2\_transports\default.py", line 241, in handle_request
+    with map_httpcore_exceptions():
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx2\_transports\default.py", line 112, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx2.ReadTimeout: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\agent_service.py", line 544, in _worker_loop
+    succeeded = self._task_runner(client, task.instruction, control=control)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 813, in run_task
+    decision = ask_gemini(client, task, frame, history, context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 417, in ask_gemini
+    return suggest_cursor_action(
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\screen_vision.py", line 350, in suggest_cursor_action
+    output = create_interaction(
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 382, in generate
+    response = _generate_single_model(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 348, in _generate_single_model
+    raise GeminiFatalError(
+gemini_agent.GeminiFatalError: Falló la única solicitud a gemini-3.5-flash (ReadTimeout). BabyJarvis se detendrá sin reintentar ni cambiar de modelo.
+
+2026-11-19 19:12:16 INFO GUI: ERROR: GeminiFatalError: Falló la única solicitud a gemini-3.5-flash (ReadTimeout). BabyJarvis se detendrá sin reintentar ni cambiar de modelo.
+TRAZA COMPLETA:
+Traceback (most recent call last):
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx2\_transports\default.py", line 95, in map_httpcore_exceptions
+    yield
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx2\_transports\default.py", line 242, in handle_request
+    resp = self._pool.handle_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpcore2\_sync\connection_pool.py", line 243, in handle_request
+    raise exc from None
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpcore2\_sync\connection_pool.py", line 225, in handle_request
+    response = connection.handle_request(pool_request.request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpcore2\_sync\connection.py", line 98, in handle_request
+    return self._connection.handle_request(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpcore2\_sync\http11.py", line 125, in handle_request
+    raise exc
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpcore2\_sync\http11.py", line 97, in handle_request
+    ) = self._receive_response_headers(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpcore2\_sync\http11.py", line 167, in _receive_response_headers
+    event = self._receive_event(timeout=timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpcore2\_sync\http11.py", line 200, in _receive_event
+    data = self._network_stream.read(self.READ_NUM_BYTES, timeout=timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpcore2\_backends\sync.py", line 126, in read
+    with map_exceptions(exc_map):
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpcore2\_exceptions.py", line 16, in map_exceptions
+    raise to_exc(exc) from exc
+httpcore2.ReadTimeout: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 336, in _generate_single_model
+    response = _run_api_call(
+               ^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 318, in _run_api_call
+    raise result
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 301, in invoke
+    result_queue.put((True, operation()))
+                            ^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 337, in <lambda>
+    lambda: client.models.generate_content(model=model, contents=contents, config=config),
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\models.py", line 6204, in generate_content
+    response = self._generate_content_with_continuation(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\models.py", line 6045, in _generate_content_with_continuation
+    response = self._generate_content(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\models.py", line 4573, in _generate_content
+    response = self._api_client.request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\_api_client.py", line 2374, in request
+    response = self._request(http_request, http_options, stream=False)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\_api_client.py", line 2150, in _request
+    return self._retry(self._request_once, http_request, stream)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\tenacity\__init__.py", line 470, in __call__
+    do = self.iter(retry_state=retry_state)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\tenacity\__init__.py", line 371, in iter
+    result = action(retry_state)
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\tenacity\__init__.py", line 413, in exc_check
+    raise retry_exc.reraise()
+          ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\tenacity\__init__.py", line 184, in reraise
+    raise self.last_attempt.result()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\concurrent\futures\_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\concurrent\futures\_base.py", line 401, in __get_result
+    raise self._exception
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\tenacity\__init__.py", line 473, in __call__
+    result = fn(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\_api_client.py", line 2126, in _request_once
+    response = self._httpx_client.send(httpx_request, stream=stream)  # type: ignore[union-attr, arg-type]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx2\_client.py", line 974, in send
+    response = self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx2\_client.py", line 1002, in _send_handling_auth
+    response = self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx2\_client.py", line 1037, in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx2\_client.py", line 1070, in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx2\_transports\default.py", line 241, in handle_request
+    with map_httpcore_exceptions():
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\httpx2\_transports\default.py", line 112, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx2.ReadTimeout: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\agent_service.py", line 544, in _worker_loop
+    succeeded = self._task_runner(client, task.instruction, control=control)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 813, in run_task
+    decision = ask_gemini(client, task, frame, history, context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 417, in ask_gemini
+    return suggest_cursor_action(
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\screen_vision.py", line 350, in suggest_cursor_action
+    output = create_interaction(
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 382, in generate
+    response = _generate_single_model(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 348, in _generate_single_model
+    raise GeminiFatalError(
+gemini_agent.GeminiFatalError: Falló la única solicitud a gemini-3.5-flash (ReadTimeout). BabyJarvis se detendrá sin reintentar ni cambiar de modelo.
+
+2026-11-19 20:10:53 INFO === Inicio de sesión del asistente ===
+2026-11-19 20:10:53 INFO Archivo de registro: C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\agent_debug.log
+2026-11-19 20:10:54 INFO GUI: Archivo de registro persistente: C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\agent_debug.log
+2026-11-19 20:11:03 INFO GUI: Búsqueda de modelos agregada a la cola.
+2026-11-19 20:11:03 INFO GUI: Se encontraron 29 modelos devueltos por la API Gemini.
+2026-11-19 20:11:49 INFO GUI: Modelo principal configurado: gemini-3.5-flash-lite
+2026-11-19 20:12:02 INFO GUI: Tarea de1d31f8 agregada a la cola.
+2026-11-19 20:12:02 INFO [tarea de1d31f8] ENTRADA DEL USUARIO:
+abre paint
+2026-11-19 20:12:02 INFO [tarea de1d31f8] INICIO DE PROCESAMIENTO: modelo principal=gemini-3.5-flash-lite
+2026-11-19 20:12:02 INFO Inicio de tarea; se omite el texto de la instruccion del registro.
+2026-11-19 20:12:02 INFO [tarea de1d31f8] Capturando pantalla y consultando a Gemini...
+2026-11-19 20:12:02 INFO GUI: Instrucción agregada a la cola.
+2026-11-19 20:12:02 INFO GUI: ENTRADA DEL USUARIO:
+abre paint
+2026-11-19 20:12:02 INFO GUI: INICIO DE PROCESAMIENTO: modelo principal=gemini-3.5-flash-lite
+2026-11-19 20:12:02 INFO GUI: Capturando pantalla y consultando a Gemini...
+2026-11-19 20:12:03 INFO Captura: imagen=1366x768 escritorio=1366x768 origen=(0,0) DPI=per-monitor-v2/96
+2026-11-19 20:12:03 INFO [tarea de1d31f8] Usando exclusivamente Gemini gemini-3.5-flash-lite; sin fallback ni reintentos.
+2026-11-19 20:12:03 INFO Solicitud única a Gemini iniciada: modelo=gemini-3.5-flash-lite
+2026-11-19 20:12:03 INFO GUI: Usando exclusivamente Gemini gemini-3.5-flash-lite; sin fallback ni reintentos.
+2026-11-19 20:12:05 INFO Solicitud única completada: modelo=gemini-3.5-flash-lite duracion=2.41s
+2026-11-19 20:12:05 INFO Finalización de respuesta Gemini: STOP
+2026-11-19 20:12:05 INFO [tarea de1d31f8] RESPUESTA COMPLETA DE GEMINI (salida recibida):
+{"status":"continue","actions":[{"type":"move","x":55,"y":972,"duration":0.3},{"type":"click","x":55,"y":972,"button":"left"}]}
+2026-11-19 20:12:05 ERROR [tarea de1d31f8] Fallo fatal; se detiene el servicio completo:
+GeminiFatalError: Gemini devolvió una respuesta inválida o coordenadas fuera de la captura (1366x768). Se descarta la respuesta y se detiene todo: Coordenadas fuera de la captura: (55, 972) no pertenece a una imagen de 1366x768; no se ajustarán automáticamente.
+TRAZA COMPLETA:
+Traceback (most recent call last):
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 415, in ask_gemini
+    return suggest_cursor_action(
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\screen_vision.py", line 410, in suggest_cursor_action
+    x, y = _validated_point(raw_action, required, allowed, frame)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\screen_vision.py", line 545, in _validated_point
+    raise ValueError(
+ValueError: Coordenadas fuera de la captura: (55, 972) no pertenece a una imagen de 1366x768; no se ajustarán automáticamente.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\agent_service.py", line 542, in _worker_loop
+    succeeded = self._task_runner(client, task.instruction, control=control)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 811, in run_task
+    decision = ask_gemini(client, task, frame, history, context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 428, in ask_gemini
+    raise GeminiFatalError(
+gemini_agent.GeminiFatalError: Gemini devolvió una respuesta inválida o coordenadas fuera de la captura (1366x768). Se descarta la respuesta y se detiene todo: Coordenadas fuera de la captura: (55, 972) no pertenece a una imagen de 1366x768; no se ajustarán automáticamente.
+
+2026-11-19 20:12:05 INFO GUI: RESPUESTA COMPLETA DE GEMINI (salida recibida):
+{"status":"continue","actions":[{"type":"move","x":55,"y":972,"duration":0.3},{"type":"click","x":55,"y":972,"button":"left"}]}
+2026-11-19 20:12:05 INFO GUI: ERROR: GeminiFatalError: Gemini devolvió una respuesta inválida o coordenadas fuera de la captura (1366x768). Se descarta la respuesta y se detiene todo: Coordenadas fuera de la captura: (55, 972) no pertenece a una imagen de 1366x768; no se ajustarán automáticamente.
+TRAZA COMPLETA:
+Traceback (most recent call last):
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 415, in ask_gemini
+    return suggest_cursor_action(
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\screen_vision.py", line 410, in suggest_cursor_action
+    x, y = _validated_point(raw_action, required, allowed, frame)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\screen_vision.py", line 545, in _validated_point
+    raise ValueError(
+ValueError: Coordenadas fuera de la captura: (55, 972) no pertenece a una imagen de 1366x768; no se ajustarán automáticamente.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\agent_service.py", line 542, in _worker_loop
+    succeeded = self._task_runner(client, task.instruction, control=control)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 811, in run_task
+    decision = ask_gemini(client, task, frame, history, context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 428, in ask_gemini
+    raise GeminiFatalError(
+gemini_agent.GeminiFatalError: Gemini devolvió una respuesta inválida o coordenadas fuera de la captura (1366x768). Se descarta la respuesta y se detiene todo: Coordenadas fuera de la captura: (55, 972) no pertenece a una imagen de 1366x768; no se ajustarán automáticamente.
+
