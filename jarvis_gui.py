@@ -145,6 +145,12 @@ class JarvisApp:
             state="disabled",
         )
         self.reject_button.pack(side="left", padx=3)
+        approval_controls.grid_remove()
+
+        ttk.Label(
+            proposal_frame,
+            text="Modo autónomo activo · usa Parada de emergencia para interrumpir",
+        ).grid(row=2, column=0, sticky="w", padx=7, pady=(0, 5))
 
         screenshot_frame = ttk.LabelFrame(self.control_tab, text="Captura del monitor principal")
         screenshot_frame.grid(row=1, column=0, sticky="nsew", padx=2, pady=2)
