@@ -606,7 +606,7 @@ class AgentService:
                 self.events.put(ModelsDiscoveredEvent(tuple(models)))
                 if not job.cancelled.is_set():
                     self.events.put(
-                        ActivityEvent(f"Se encontraron {len(models)} modelos compatibles con generateContent.")
+                        ActivityEvent(f"Se encontraron {len(models)} modelos devueltos por la API Gemini.")
                     )
             else:
                 results = self._model_manager.test_models(
