@@ -46,7 +46,7 @@ from screen_vision import (
 
 BASE_DIR = Path(__file__).resolve().parent
 LOG_PATH = BASE_DIR / "agent_debug.log"
-FIXED_GEMINI_MODEL = "gemini-3.8-flash"
+FIXED_GEMINI_MODEL = "gemini-3.5-flash"
 MODEL = FIXED_GEMINI_MODEL
 TIMEOUT_SECONDS = float(os.getenv("GEMINI_TIMEOUT_SECONDS", "60"))
 MAX_ACTIONS = int(os.getenv("MAX_SCREEN_ACTIONS", "8"))
@@ -209,7 +209,7 @@ def load_env_file(path: Path) -> None:
 
 
 def create_client() -> genai.Client:
-    """Inicializa exclusivamente el modelo fijo Gemini 3.8 Flash."""
+    """Inicializa exclusivamente el modelo fijo Gemini 3.5 Flash."""
     global MODEL, TIMEOUT_SECONDS, MAX_ACTIONS, MAX_TASK_DURATION_SECONDS
     load_env_file(BASE_DIR / ".env")
     configured_model = os.getenv("GEMINI_MODEL")
@@ -391,10 +391,20 @@ def ask_gemini(
             types.GenerateContentConfig(
                 response_mime_type="application/json",
                 temperature=0.1,
-                max_output_tokens=500,
+                max_output_tokens=1024,
             ),
             context,
         )
+        candidates = getattr(response, "candidates", None) or []
+        finish_reason = getattr(candidates[0], "finish_reason", None) if candidates else None
+        if finish_reason is not None:
+            finish_label = str(getattr(finish_reason, "name", finish_reason))
+            LOGGER.info("Finalización de respuesta Gemini: %s", finish_label)
+            if finish_label.upper().endswith("MAX_TOKENS"):
+                raise RuntimeError(
+                    "Gemini agotó el límite de tokens antes de completar el JSON. "
+                    "La respuesta se descarta íntegramente y no se ejecutan acciones."
+                )
         response_text = (response.text or "").strip()
         _task_activity(
             context,
