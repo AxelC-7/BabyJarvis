@@ -32,8 +32,6 @@ _CURSOR_PROMPT_REQUIRED_TOKENS = frozenset({
     "{{STRATEGY_INSTRUCTIONS}}",
     "{{SCREEN_WIDTH}}",
     "{{SCREEN_HEIGHT}}",
-    "{{MAX_X}}",
-    "{{MAX_Y}}",
     "{{USER_TASK_JSON}}",
     "{{HISTORY_JSON}}",
 })
@@ -70,8 +68,6 @@ def _build_cursor_prompt(
         "{{STRATEGY_INSTRUCTIONS}}": strategy_instructions,
         "{{SCREEN_WIDTH}}": str(frame.width),
         "{{SCREEN_HEIGHT}}": str(frame.height),
-        "{{MAX_X}}": str(frame.width - 1),
-        "{{MAX_Y}}": str(frame.height - 1),
         "{{USER_TASK_JSON}}": json.dumps(task, ensure_ascii=False),
         "{{HISTORY_JSON}}": json.dumps(history[-4:], ensure_ascii=False),
     }
@@ -551,20 +547,27 @@ def _validated_point(
 ) -> tuple[int, int]:
     if not required <= action.keys() or action.keys() - allowed:
         raise ValueError("Parámetros de coordenadas incompletos o desconocidos.")
-    x = action[next(key for key in required if key.endswith("_x") or key == "x")]
-    y = action[next(key for key in required if key.endswith("_y") or key == "y")]
+    x_key = next(key for key in required if key.endswith("_x") or key == "x")
+    y_key = next(key for key in required if key.endswith("_y") or key == "y")
+    normalized_x = action[x_key]
+    normalized_y = action[y_key]
     if (
-        isinstance(x, bool)
-        or not isinstance(x, int)
-        or isinstance(y, bool)
-        or not isinstance(y, int)
-        or not 0 <= x < frame.width
-        or not 0 <= y < frame.height
+        isinstance(normalized_x, bool)
+        or not isinstance(normalized_x, int)
+        or isinstance(normalized_y, bool)
+        or not isinstance(normalized_y, int)
+        or not 0 <= normalized_x <= 1000
+        or not 0 <= normalized_y <= 1000
     ):
         raise ValueError(
-            f"Coordenadas fuera de la captura: ({x!r}, {y!r}) no pertenece a "
-            f"una imagen de {frame.width}x{frame.height}; no se ajustarán automáticamente."
+            "Coordenadas normalizadas fuera del rango 0..1000: "
+            f"({normalized_x!r}, {normalized_y!r})."
         )
+    # Convert the model's fixed 0..1000 image-relative space to capture pixels.
+    x = (normalized_x * (frame.width - 1) + 500) // 1000
+    y = (normalized_y * (frame.height - 1) + 500) // 1000
+    if not 0 <= x < frame.width or not 0 <= y < frame.height:
+        raise RuntimeError("La conversión normalizada produjo un punto inválido.")
     return x, y
 
 
