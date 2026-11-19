@@ -55,13 +55,13 @@ Reglas del contrato:
 
 ## Acciones permitidas
 
-- Mover: `{"type":"move","x":100,"y":200,"duration":0.3}` (x/y normalizados 0..1000)
-- Clic: `{"type":"click","x":100,"y":200,"button":"left"}` (`left`, `right` o `middle`)
-- Doble clic: `{"type":"double_click","x":100,"y":200}`
-- Arrastrar: `{"type":"drag","start_x":100,"start_y":200,"end_x":300,"end_y":400,"duration":1}` (todas las coordenadas normalizadas 0..1000)
+- Mover: `{"type":"move","x":100,"y":200,"coordinate_system":"normalized_1000","duration":0.3}` (x/y normalizados 0..1000)
+- Clic: `{"type":"click","x":100,"y":200,"coordinate_system":"normalized_1000","button":"left"}` (`left`, `right` o `middle`)
+- Doble clic: `{"type":"double_click","x":100,"y":200,"coordinate_system":"normalized_1000"}`
+- Arrastrar: `{"type":"drag","start_x":100,"start_y":200,"end_x":300,"end_y":400,"coordinate_system":"normalized_1000","duration":1}` (todas las coordenadas normalizadas 0..1000)
 - Escribir: `{"type":"write","text":"texto"}`
 - Pulsar tecla: `{"type":"press","key":"ENTER"}` o `{"type":"press","keys":["WINDOWS","S"]}`
-- Desplazar: `{"type":"scroll","x":100,"y":200,"delta":120}`
+- Desplazar: `{"type":"scroll","x":100,"y":200,"coordinate_system":"normalized_1000","delta":120}`
 - Esperar: `{"type":"wait","seconds":1}`
 
 Máximo 4 teclas por combinación. Teclas admitidas: A-Z, 0-9, BACKSPACE, TAB, ENTER, SHIFT, CTRL, ALT, ESC, SPACE, PAGEUP, PAGEDOWN, END, HOME, ARROWLEFT, ARROWUP, ARROWRIGHT, ARROWDOWN, DELETE, WINDOWS, F1-F12.
