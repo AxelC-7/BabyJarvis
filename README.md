@@ -57,6 +57,16 @@ La verificación visual también utiliza `gemini-3.5-flash`; no se necesita un s
 
 La estrategia actual prioriza el cursor y, en Windows, contempla Win+R y CMD/PowerShell como métodos alternativos. Los nombres de aplicaciones no están limitados a una lista fija: el agente utiliza el nombre solicitado por el usuario. No existe un fallback nativo ligado a aplicaciones concretas. La captura y el control de escritorio actuales siguen siendo específicos de Windows; la abstracción multiplataforma para Linux queda pendiente.
 
+## Prompt visual editable
+
+El prompt de percepción y control visual está en `prompts/desktop_agent.md`. BabyJarvis lee ese archivo desde disco en cada decisión visual, completa los marcadores con la etapa actual, la solicitud, el historial y las dimensiones reales de la captura, y envía el texto junto con la imagen a Gemini.
+
+Puedes editar el Markdown para ajustar instrucciones y reglas sin modificar `screen_vision.py`. Conserva los marcadores dinámicos. Si el archivo falta o está incompleto, la decisión falla de forma segura y no se ejecutan acciones.
+
+Gemini no abre archivos locales directamente: BabyJarvis lee el `.md` y transmite su contenido en la solicitud.
+
+La validación determinista de coordenadas en Python permanece activa. El prompt refuerza los límites exactos de la imagen, pero nunca sustituye esa barrera.
+
 ## Primera prueba segura en el notebook
 
 Hazla después de iniciar la aplicación y confirmar que la API Key local está configurada:
