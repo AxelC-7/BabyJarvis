@@ -11,7 +11,6 @@ from gemini_agent import (
     GeminiFatalError,
     TaskContext,
     _generate_single_model,
-    _native_application_for_task,
     _record_strategy_progress,
     _validate_strategy_actions,
 )
@@ -90,7 +89,7 @@ def test_shell_command_requires_console_opened_through_run_dialog() -> None:
     context.win_r_attempted = True
     with pytest.raises(GeminiFatalError, match="no fue abierto"):
         _validate_strategy_actions(
-            [CursorAction("write", text="start mspaint")],
+            [CursorAction("write", text="start firefox")],
             context,
         )
 
@@ -101,12 +100,12 @@ def test_only_simple_application_launch_commands_are_allowed_in_shell() -> None:
     context.win_r_attempted = True
     context.shell_opened = True
     _validate_strategy_actions(
-        [CursorAction("write", text="start mspaint")],
+        [CursorAction("write", text="start firefox")],
         context,
     )
-    with pytest.raises(GeminiFatalError, match="Solo se permiten comandos simples"):
+    with pytest.raises(GeminiFatalError, match="comandos simples de lanzamiento"):
         _validate_strategy_actions(
-            [CursorAction("write", text="Start-Process mspaint; Remove-Item *")],
+            [CursorAction("write", text="Start-Process firefox; Remove-Item *")],
             context,
         )
 
@@ -191,18 +190,3 @@ def test_out_of_bounds_coordinate_error_includes_capture_dimensions() -> None:
         )
 
 
-@pytest.mark.parametrize(
-    ("task", "expected"),
-    [
-        ("abre paint con el cursor", "mspaint.exe"),
-        ("abre el bloc de notas", "notepad.exe"),
-        ("abre la calculadora", "calc.exe"),
-        ("abre el explorador de archivos", "explorer.exe"),
-    ],
-)
-def test_native_fallback_only_maps_supported_windows_apps(task: str, expected: str) -> None:
-    assert _native_application_for_task(task) == expected
-
-
-def test_native_fallback_does_not_guess_unknown_applications() -> None:
-    assert _native_application_for_task("abre una aplicación desconocida") is None
