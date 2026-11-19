@@ -94,7 +94,7 @@ class AgentServiceTests(unittest.TestCase):
         self.assertEqual(maximum_active, 1)
         self.assertEqual({event.task_id for event in finished}, {task_one, task_two})
 
-    def test_authorization_is_bound_to_exact_batch_and_actions(self) -> None:
+    def test_action_batches_run_autonomously_without_waiting_for_approval(self) -> None:
         service = self.make_service(lambda *_args, **_kwargs: True)
         action = CursorAction("click", x=8, y=12)
         context = TaskContext(
@@ -103,122 +103,19 @@ class AgentServiceTests(unittest.TestCase):
             cancelled=threading.Event(),
         )
         result: queue.Queue[bool] = queue.Queue()
-
-        def request_authorization():
-            result.put(
-                service._propose_batch(
-                    type("Task", (), {"task_id": "task-1"})(),
-                    (action,),
-                    self.frame,
-                    True,
-                    context,
-                )
-            )
-
         with patch("gemini_agent._check_task"):
-            worker = threading.Thread(target=request_authorization)
+            worker = threading.Thread(target=lambda: result.put(service._propose_batch(
+                type("Task", (), {"task_id": "task-auto"})(),
+                (action,), self.frame, True, context
+            )))
             worker.start()
             proposal = self.next_event(service, ActionProposalEvent)
-            self.assertTrue(proposal.requires_authorization)
-            self.assertIn("click", proposal.summary)
-            service.authorize(proposal.batch_id, (CursorAction("wait", duration=1),), True)
-            service.authorize(proposal.batch_id, proposal.actions, True)
             worker.join(1)
-
         self.assertFalse(worker.is_alive())
+        self.assertFalse(proposal.requires_authorization)
+        self.assertIsNone(proposal.expires_at)
+        self.assertIn("modo autónomo", proposal.summary.casefold())
         self.assertTrue(result.get_nowait())
-        self.assertEqual(proposal.actions, (action,))
-
-    def test_rejection_does_not_authorize_the_proposed_batch(self) -> None:
-        service = self.make_service(lambda *_args, **_kwargs: True)
-        context = TaskContext(
-            deadline=time.monotonic() + 2,
-            geometry=self.geometry,
-            cancelled=threading.Event(),
-        )
-        result: queue.Queue[bool] = queue.Queue()
-        actions = (CursorAction("write", text="test"),)
-        with patch("gemini_agent._check_task"):
-            worker = threading.Thread(
-                target=lambda: result.put(
-                    service._propose_batch(
-                        type("Task", (), {"task_id": "task-reject"})(),
-                        actions,
-                        self.frame,
-                        True,
-                        context,
-                    )
-                )
-            )
-            worker.start()
-            proposal = self.next_event(service, ActionProposalEvent)
-            service.authorize(proposal.batch_id, proposal.actions, False)
-            worker.join(1)
-
-        self.assertFalse(worker.is_alive())
-        self.assertFalse(result.get_nowait())
-
-    def test_authorization_from_another_batch_is_ignored(self) -> None:
-        service = self.make_service(lambda *_args, **_kwargs: True)
-        context = TaskContext(
-            deadline=time.monotonic() + 2,
-            geometry=self.geometry,
-            cancelled=threading.Event(),
-        )
-        result: queue.Queue[bool] = queue.Queue()
-        actions = (CursorAction("click", x=8, y=12),)
-        with patch("gemini_agent._check_task"):
-            worker = threading.Thread(
-                target=lambda: result.put(
-                    service._propose_batch(
-                        type("Task", (), {"task_id": "task-other-batch"})(),
-                        actions,
-                        self.frame,
-                        True,
-                        context,
-                    )
-                )
-            )
-            worker.start()
-            proposal = self.next_event(service, ActionProposalEvent)
-            service.authorize("different-batch-id", proposal.actions, True)
-            service.authorize(proposal.batch_id, proposal.actions, True)
-            worker.join(1)
-
-        self.assertFalse(worker.is_alive())
-        self.assertTrue(result.get_nowait())
-
-    def test_expired_authorization_is_rejected(self) -> None:
-        service = self.make_service(
-            lambda *_args, **_kwargs: True,
-            authorization_timeout=0.05,
-        )
-        context = TaskContext(
-            deadline=time.monotonic() + 2,
-            geometry=self.geometry,
-            cancelled=threading.Event(),
-        )
-        result: queue.Queue[bool] = queue.Queue()
-
-        with patch("gemini_agent._check_task"):
-            worker = threading.Thread(
-                target=lambda: result.put(
-                    service._propose_batch(
-                        type("Task", (), {"task_id": "task-expired"})(),
-                        (CursorAction("click", x=1, y=2),),
-                        self.frame,
-                        True,
-                        context,
-                    )
-                )
-            )
-            worker.start()
-            proposal = self.next_event(service, ActionProposalEvent)
-            self.assertIsNotNone(proposal.expires_at)
-            worker.join(1)
-
-        self.assertFalse(worker.is_alive())
-        self.assertFalse(result.get_nowait())
 
     def test_pause_resume_and_emergency_stop_are_delivered_to_worker(self) -> None:
         started = threading.Event()
