@@ -31,3 +31,6 @@ Thumbs.db
 diagnostico-windows-*.txt
 diagnostico-windows-*.json
 diagnostics/
+
+# Capturas locales de depuración (imágenes y metadatos)
+debug_captures/
