@@ -1,0 +1,47 @@
+name: Python syntax check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  compile:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile active project and tests
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Path . -Recurse -File -Filter *.py |
+            Where-Object {
+              $_.FullName -notmatch '[\\/](recovery|\.git|\.venv|venv|__pycache__)[\\/]'
+            }
+
+          if (-not $files) {
+            throw "No se encontraron archivos Python activos para compilar."
+          }
+
+          $failed = $false
+          foreach ($file in $files) {
+            Write-Host "Compilando $($file.FullName)"
+            python -m py_compile $file.FullName
+            if ($LASTEXITCODE -ne 0) {
+              $failed = $true
+            }
+          }
+
+          if ($failed) {
+            throw "La compilación de uno o más archivos Python falló."
+          }
+
+          Write-Host "Compilación sintáctica completada correctamente."
