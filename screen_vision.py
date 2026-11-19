@@ -47,9 +47,9 @@ def _load_cursor_prompt_template() -> str:
         raise RuntimeError(
             f"No se pudo leer el prompt visual {_CURSOR_PROMPT_PATH}: {exc}"
         ) from exc
-    missing = _CURSOR_PROMPT_REQUIRED_TOKENS.difference(
-        token for token in _CURSOR_PROMPT_REQUIRED_TOKENS if token in template
-    )
+    missing = {
+        token for token in _CURSOR_PROMPT_REQUIRED_TOKENS if token not in template
+    }
     if missing:
         raise RuntimeError(
             "El archivo del prompt visual no contiene los marcadores requeridos: "
