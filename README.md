@@ -91,7 +91,9 @@ Get-ChildItem -Recurse -Filter *.py |
 - Las capturas del monitor principal se envían a Gemini para análisis cuando se ejecuta una tarea.
 - El diagnóstico de compatibilidad utiliza una imagen sintética, no una captura del escritorio.
 - El modo autónomo no solicita aprobación manual para clics, doble clic, arrastre, escritura, teclas ni desplazamiento.
-- Cada captura tomada durante una tarea se guarda localmente en `debug_captures/` como PNG, junto con un JSON de metadatos (hora, tarea, dimensiones y geometría). La carpeta está excluida de Git; revisa y elimina las capturas cuando ya no las necesites, porque pueden contener información privada.
+- Cada captura tomada durante una tarea se guarda localmente en `debug_captures/` como PNG, junto con un JSON de metadatos (hora, tarea, dimensiones y geometría).
+- Cada tarea mantiene además `debug_captures/<task_id>/events.jsonl`, con la secuencia temporal de estados, actividad, lotes propuestos, acciones redactadas, errores y resultado final. Los textos escritos se registran solo por cantidad de caracteres para no almacenar contraseñas ni contenido privado.
+- La carpeta está excluida de Git; revisa y elimina las capturas cuando ya no las necesites, porque pueden contener información privada.
 - No se deben guardar claves, capturas privadas, diagnósticos del equipo ni logs en Git.
 - La verificación visual es probabilística; revisa el resultado en pantalla y no uses Jarvis para operaciones irreversibles o sensibles.
 
