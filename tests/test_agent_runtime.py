@@ -404,23 +404,27 @@ class AgentRuntimeTests(unittest.TestCase):
         self.assertIsNone(_repeated_click_point(actions[:2], None, 0))
         self.assertEqual(_repeated_click_point(actions[:1], (5, 6), 2), (5, 6))
 
-    def test_denied_batch_executes_no_action(self) -> None:
+    def test_standalone_task_executes_validated_batch_without_approval_prompt(self) -> None:
         click = CursorAction("click", x=12, y=34)
+        decisions = [
+            AgentDecision("continue", actions=(click,)),
+            AgentDecision("success", message="done"),
+        ]
         with (
             patch("gemini_agent.get_screen_geometry", return_value=self.geometry),
             patch("gemini_agent.get_cursor_position", return_value=(100, 100)),
             patch("gemini_agent.capture_screen", return_value=self.frame),
-            patch(
-                "gemini_agent.ask_gemini",
-                return_value=AgentDecision("continue", actions=(click,)),
-            ),
-            patch("gemini_agent._request_authorization", return_value=False),
-            patch("gemini_agent._execute_action") as execute,
+            patch("gemini_agent.ask_gemini", side_effect=decisions),
+            patch("gemini_agent._request_authorization") as authorization,
+            patch("gemini_agent._execute_action", return_value="Clic") as execute,
+            patch("gemini_agent._sleep_for_task"),
+            patch("gemini_agent._verify_task", return_value=(True, "visible result")),
             patch("gemini_agent.print"),
         ):
             result = run_task(object(), "safe test")
-        self.assertFalse(result)
-        execute.assert_not_called()
+        self.assertTrue(result)
+        execute.assert_called_once()
+        authorization.assert_not_called()
 
     def test_verifier_uses_configured_model_only_when_probe_is_fresh_and_compatible(self) -> None:
         from gemini_agent import _select_verification_model
