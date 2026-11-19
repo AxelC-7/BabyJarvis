@@ -61,38 +61,6 @@ def _model_name(model: object) -> str:
     return name.strip().removeprefix("models/")
 
 
-def _supports_generate_content(model: object) -> bool:
-    actions = getattr(model, "supported_actions", None) or ()
-    if not any(
-        isinstance(action, str) and action.casefold() == "generatecontent"
-        for action in actions
-    ):
-        return False
-    metadata = " ".join(
-        str(getattr(model, attribute, "") or "")
-        for attribute in ("name", "display_name", "description")
-    ).casefold()
-    task_specific_markers = (
-        "tts",
-        "text-to-speech",
-        "text to speech",
-        "transcrib",
-        "embedding",
-        "music generation",
-        "audio generation",
-        "speech generation",
-        "image generation",
-        "generative image",
-        "preview image",
-        "flash image",
-        "pro image",
-    )
-    if any(marker in metadata for marker in task_specific_markers):
-        return False
-    description = str(getattr(model, "description", "") or "").casefold().rstrip(".")
-    return not re.search(r"\bimage(?:\s+preview)?$", description)
-
-
 def _png_chunk(kind: bytes, data: bytes) -> bytes:
     payload = kind + data
     return (
@@ -456,9 +424,8 @@ class GeminiModelManager:
         )
 
     def selected_primary(self, default: str) -> str:
-        report = self.fresh_report()
-        if report is None:
-            return default
+        # The user's explicit selection survives discovery-cache expiration.
+        report = self._read_report_unchecked()
         selected = report.get("selected_primary")
         return selected.strip() if isinstance(selected, str) and selected.strip() else default
 
@@ -512,13 +479,7 @@ class GeminiModelManager:
         )
         report["expires_at"] = report["results_expires_at"]
         report.setdefault("discovered_models", [result.model for result in results])
-        selected = report.get("selected_primary")
-        if selected not in {
-            result.model
-            for result in results
-            if result.classification == "compatible_text_image"
-        }:
-            report["selected_primary"] = None
+        # Never overwrite an explicit user selection based on compatibility probes.
         self._write_report(report)
 
     def _read_report_unchecked(self) -> dict[str, object]:
