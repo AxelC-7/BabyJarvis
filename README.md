@@ -47,30 +47,23 @@ python .\jarvis_gui.py
 
 Se abrirá la ventana de Jarvis. La primera inicialización valida la configuración local y crea el cliente Gemini. Si aparece un error, revisa el mensaje de la interfaz y el archivo local `agent_debug.log`; antes de compartirlo, comprueba que no contenga datos privados.
 
-## Diagnóstico obligatorio de modelos
+## Modelo Gemini fijo
 
-Antes de pedirle tareas de escritorio:
+BabyJarvis utiliza exclusivamente `gemini-3.8-flash` para analizar la pantalla, proponer acciones y verificar resultados. El modelo está fijado en código: no hay selector, fallback a otros modelos ni reintentos automáticos.
 
-1. Abre la pestaña **Modelos Gemini**.
-2. Pulsa **Buscar modelos disponibles** y espera a que termine.
-3. Pulsa **Probar compatibilidad**. El diagnóstico envía solicitudes de texto y una imagen sintética de prueba; no envía tu escritorio ni ejecuta acciones.
-4. Espera los resultados. Si Gemini devuelve HTTP 429, el diagnóstico detiene el barrido para evitar multiplicar las solicitudes.
-5. Comprueba que haya al menos dos modelos con estado `compatible_text_image`. Uno puede ser el principal y otro debe quedar disponible como verificador independiente.
-6. Selecciona un modelo compatible como principal con **Usar como principal**.
+Si la API, el modelo o una respuesta estructurada falla, BabyJarvis detiene el servicio completo, descarta las tareas pendientes y requiere reiniciar la aplicación. No ejecuta acciones nuevas después de ese fallo.
 
-Los resultados se guardan localmente en `diagnostics/gemini_model_diagnostics.json`; esa carpeta no debe publicarse. Los resultados caducan según `GEMINI_MODEL_DIAGNOSTICS_TTL_HOURS` (168 horas por defecto).
-
-Si solo hay un modelo compatible, Jarvis puede analizar y proponer acciones, pero no podrá declarar una tarea completada: la verificación visual exige un segundo modelo independiente y validado.
+La verificación visual también utiliza `gemini-3.8-flash`; no se necesita un segundo modelo ni una segunda API Key.
 
 ## Primera prueba segura en el notebook
 
-Hazla solo después de completar el diagnóstico:
+Hazla después de iniciar la aplicación y confirmar que la API Key local está configurada:
 
 1. Deja abierta una aplicación no sensible, por ejemplo el Bloc de notas, con un documento vacío.
 2. Envía una instrucción sencilla para abrir una aplicación o mostrar una ventana, sin pedir que escriba, envíe, elimine o guarde información.
 3. Observa la captura y el lote propuesto.
 4. Comprueba en la interfaz el lote propuesto y las capturas guardadas. El modo autónomo puede hacer clic, escribir y pulsar teclas sin pedir confirmación.
-5. Comprueba que Jarvis vuelva a capturar la pantalla y que la finalización se confirme mediante verificación visual independiente.
+5. Comprueba que Jarvis vuelva a capturar la pantalla y que la finalización se confirme mediante una segunda consulta al mismo modelo fijo.
 
 El botón **Parada de emergencia** cancela la tarea activa y descarta las instrucciones pendientes. El botón de cierre también solicita la cancelación. No son una garantía de reversión: una acción que ya se haya ejecutado no se deshace automáticamente. La ejecución sigue acotada por los límites globales de duración, rondas y acciones configurados.
 
@@ -99,4 +92,4 @@ Get-ChildItem -Recurse -Filter *.py |
 
 ## Limitaciones pendientes
 
-La CI confirma compilación y pruebas unitarias en un entorno Windows automatizado. No sustituye las pruebas en tu notebook: GUI real, DPI/monitores, captura GDI, control físico de mouse/teclado, cuota de tu API Key y verificación visual con dos modelos deben comprobarse localmente.
+La CI confirma compilación y pruebas unitarias en un entorno Windows automatizado. No sustituye las pruebas en tu notebook: GUI real, DPI/monitores, captura GDI, control físico de mouse/teclado y disponibilidad/cuota de tu API Key deben comprobarse localmente.

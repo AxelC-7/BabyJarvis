@@ -289,6 +289,9 @@ def suggest_cursor_action(
     frame: ScreenFrame,
     *,
     history: tuple[str, ...] = (),
+    cursor_attempted: bool = False,
+    win_r_attempted: bool = False,
+    shell_opened: bool = False,
 ) -> AgentDecision:
     """Ask Gemini for a task state and, only when continuing, executable actions."""
     if not task.strip():
@@ -296,31 +299,27 @@ def suggest_cursor_action(
     if not model.strip():
         raise ValueError("El nombre del modelo no puede estar vacío.")
 
+    if not cursor_attempted:
+        strategy_instructions = "ETAPA 1: cursor obligatorio. El primer lote debe contener un clic o doble clic sobre un control visible. No uses Win+R ni consola."
+    elif not win_r_attempted:
+        strategy_instructions = "ETAPA 2: ya se ejecutó un clic con el cursor y se observó una captura nueva. Si el objetivo no se cumplió, usa Win+R. No abras CMD/PowerShell todavía."
+    elif not shell_opened:
+        strategy_instructions = "ETAPA 3: Win+R ya se ejecutó. Si no funcionó, abre CMD o PowerShell mediante Win+R, escribe únicamente cmd o powershell y pulsa Enter. Espera una captura nueva antes de escribir un comando."
+    else:
+        strategy_instructions = "ETAPA 4: CMD/PowerShell está abierto. Solo puedes ejecutar start <aplicacion> o Start-Process <aplicacion>, sin argumentos, tuberías, scripts ni comandos encadenados. Si no funciona, devuelve status=error."
+
     prompt = f"""Opera Windows solo a partir de la captura actual.
-JERARQUÍA OBLIGATORIA DE ESTRATEGIAS:
-1. PRIMERO usa el cursor sobre controles visibles (Inicio, búsqueda, iconos, botones,
-   ventanas). Identifica visualmente el objetivo y calcula su centro dentro de ESTA captura.
-   No uses atajos para saltarte una interfaz visible antes de intentar el cursor.
-2. Si el cursor ya se intentó y no consiguió el objetivo, cambia a Win+R y escribe el nombre
-   o ruta de la aplicación; confirma con Enter. Espera y vuelve a capturar.
-3. Si Win+R no funciona, para lanzar una aplicación prueba CMD o PowerShell con un comando
-   de inicio simple y específico (por ejemplo, start mspaint o Start-Process mspaint).
-   No ejecutes scripts, descargas, comandos encadenados, cambios de configuración,
-   borrados ni comandos destructivos. No uses la consola para tareas que no requieran lanzar
-   una aplicación.
-4. Como último recurso, utiliza las API nativas de Windows únicamente si la operación está
-   soportada por ellas y el programa ofrece una acción validada. No inventes coordenadas ni
-   funciones de API.
-No saltes directamente a Win+R si todavía no has probado el cursor cuando el control está
-visible. Si un intento anterior falló, no repitas exactamente la misma acción: observa el
-nuevo estado y cambia de método.
+{strategy_instructions}
+No saltes etapas: el programa valida y bloquea cualquier estrategia fuera de orden.
+Si un intento anterior falló, observa la captura nueva y cambia solo a la siguiente etapa.
 Devuelve exactamente uno de estos formatos JSON:
 - Para continuar: {{"status":"continue","actions":[...]}}, con entre 1 y 4 acciones ejecutables.
 - Para señalar éxito: {{"status":"success","message":"..."}}, sin campo actions.
 - Para señalar un error u obstáculo: {{"status":"error","message":"..."}}, sin campo actions.
 success solo es una hipótesis que el programa verificará con otra captura.
-error significa obstáculo recuperable: el programa volverá a observar y probar otra estrategia.
-El programa comprueba success con una captura independiente antes de aceptar la tarea.
+error significa obstáculo de la etapa actual; solo se permite avanzar a la siguiente etapa
+que indique el estado de estrategia. Si se agotan las etapas, el programa se detiene.
+El programa comprueba success con una captura nueva usando el mismo modelo fijo.
 Las coordenadas son píxeles de la imagen {frame.width}x{frame.height}, origen arriba a la
 izquierda, X en 0..{frame.width - 1}, Y en 0..{frame.height - 1}. Nunca inventes posiciones.
 Acciones ejecutables permitidas:
@@ -540,7 +539,10 @@ def _validated_point(
         or not 0 <= x < frame.width
         or not 0 <= y < frame.height
     ):
-        raise ValueError("Gemini propuso coordenadas fuera de la captura.")
+        raise ValueError(
+            f"Coordenadas fuera de la captura: ({x!r}, {y!r}) no pertenece a "
+            f"una imagen de {frame.width}x{frame.height}; no se ajustarán automáticamente."
+        )
     return x, y
 
 

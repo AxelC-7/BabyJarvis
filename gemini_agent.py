@@ -17,9 +17,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-import httpx
 from google import genai
-from google.genai import errors
 from google.genai import types
 
 from cursor_control import (
@@ -48,16 +46,13 @@ from screen_vision import (
 
 BASE_DIR = Path(__file__).resolve().parent
 LOG_PATH = BASE_DIR / "agent_debug.log"
-MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
-VERIFICATION_MODEL = os.getenv("GEMINI_VERIFY_MODEL", "gemini-2.5-flash")
+FIXED_GEMINI_MODEL = "gemini-3.8-flash"
+MODEL = FIXED_GEMINI_MODEL
 TIMEOUT_SECONDS = float(os.getenv("GEMINI_TIMEOUT_SECONDS", "60"))
-MAX_ACTIONS = int(os.getenv("MAX_SCREEN_ACTIONS", "24"))
+MAX_ACTIONS = int(os.getenv("MAX_SCREEN_ACTIONS", "8"))
 MAX_TASK_DURATION_SECONDS = float(os.getenv("MAX_TASK_DURATION_SECONDS", "180"))
 AUTHORIZATION_TIMEOUT_SECONDS = 30.0
-MAX_API_ATTEMPTS_PER_MODEL = int(os.getenv("GEMINI_MAX_ATTEMPTS_PER_MODEL", "2"))
-RETRY_INITIAL_DELAY_SECONDS = float(os.getenv("GEMINI_RETRY_DELAY_SECONDS", "1"))
-MAX_RETRY_DELAY_SECONDS = 8.0
-MAX_DECISION_ROUNDS = 30
+MAX_DECISION_ROUNDS = 8
 
 LOGGER = logging.getLogger("gemini_agent")
 MODEL_MANAGER = GeminiModelManager()
@@ -87,8 +82,8 @@ class TaskTimeout(RuntimeError):
     """Raised when a task reaches its global time budget."""
 
 
-class GeminiRequestTimeout(TimeoutError):
-    """Raised when all bounded Gemini request attempts time out."""
+class GeminiFatalError(RuntimeError):
+    """Raised when Gemini or its response fails; the agent must stop."""
 
 
 @dataclass
@@ -104,6 +99,10 @@ class TaskContext:
         Callable[[tuple[CursorAction, ...], ScreenFrame, bool, TaskContext], bool]
         | None
     ) = None
+    cursor_attempted: bool = False
+    win_r_attempted: bool = False
+    shell_opened: bool = False
+    shell_launcher_pending: bool = False
 
 
 @dataclass
@@ -209,30 +208,20 @@ def load_env_file(path: Path) -> None:
 
 
 def create_client() -> genai.Client:
-    """Inicializa Gemini con la clave local y un tiempo máximo de espera."""
-    global MODEL, VERIFICATION_MODEL, TIMEOUT_SECONDS, MAX_ACTIONS
-    global MAX_TASK_DURATION_SECONDS, MAX_API_ATTEMPTS_PER_MODEL
-    global RETRY_INITIAL_DELAY_SECONDS
-    global MODEL_MANAGER
+    """Inicializa exclusivamente el modelo fijo Gemini 3.8 Flash."""
+    global MODEL, TIMEOUT_SECONDS, MAX_ACTIONS, MAX_TASK_DURATION_SECONDS
     load_env_file(BASE_DIR / ".env")
-    MODEL = os.getenv("GEMINI_MODEL", MODEL)
-    VERIFICATION_MODEL = os.getenv("GEMINI_VERIFY_MODEL", VERIFICATION_MODEL)
+    configured_model = os.getenv("GEMINI_MODEL")
+    if configured_model and configured_model != FIXED_GEMINI_MODEL:
+        LOGGER.warning(
+            "Se ignora GEMINI_MODEL=%s; BabyJarvis usa exclusivamente %s.",
+            configured_model,
+            FIXED_GEMINI_MODEL,
+        )
+    MODEL = FIXED_GEMINI_MODEL
     TIMEOUT_SECONDS = float(os.getenv("GEMINI_TIMEOUT_SECONDS", "60"))
     MAX_ACTIONS = int(os.getenv("MAX_SCREEN_ACTIONS", "8"))
-    MAX_TASK_DURATION_SECONDS = float(
-        os.getenv("MAX_TASK_DURATION_SECONDS", "180")
-    )
-    MAX_API_ATTEMPTS_PER_MODEL = int(
-        os.getenv("GEMINI_MAX_ATTEMPTS_PER_MODEL", "2")
-    )
-    RETRY_INITIAL_DELAY_SECONDS = float(
-        os.getenv("GEMINI_RETRY_DELAY_SECONDS", "1")
-    )
-    MODEL_MANAGER.ttl_hours = float(
-        os.getenv("GEMINI_MODEL_DIAGNOSTICS_TTL_HOURS", "168")
-    )
-    if not math.isfinite(MODEL_MANAGER.ttl_hours) or MODEL_MANAGER.ttl_hours <= 0:
-        raise ValueError("GEMINI_MODEL_DIAGNOSTICS_TTL_HOURS debe ser positivo.")
+    MAX_TASK_DURATION_SECONDS = float(os.getenv("MAX_TASK_DURATION_SECONDS", "180"))
     if os.getenv("GEMINI_KEY_ROTATED", "").casefold() != "true":
         raise RuntimeError(
             "Gemini esta bloqueado hasta reemplazar la clave expuesta y "
@@ -240,33 +229,13 @@ def create_client() -> genai.Client:
         )
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        raise RuntimeError(
-            "Falta GEMINI_API_KEY. Configúrala en .env o como variable de entorno."
-        )
+        raise RuntimeError("Falta GEMINI_API_KEY. Configúrala en .env o como variable de entorno.")
     if not math.isfinite(TIMEOUT_SECONDS) or TIMEOUT_SECONDS <= 0:
         raise ValueError("GEMINI_TIMEOUT_SECONDS debe ser mayor que cero.")
     if not math.isfinite(MAX_TASK_DURATION_SECONDS) or MAX_TASK_DURATION_SECONDS <= TIMEOUT_SECONDS:
-        raise ValueError(
-            "MAX_TASK_DURATION_SECONDS debe superar GEMINI_TIMEOUT_SECONDS."
-        )
-    if not 1 <= MAX_API_ATTEMPTS_PER_MODEL <= 3:
-        raise ValueError(
-            "GEMINI_MAX_ATTEMPTS_PER_MODEL debe estar entre 1 y 3."
-        )
-    if (
-        not math.isfinite(RETRY_INITIAL_DELAY_SECONDS)
-        or not 0 <= RETRY_INITIAL_DELAY_SECONDS <= MAX_RETRY_DELAY_SECONDS
-    ):
-        raise ValueError(
-            f"GEMINI_RETRY_DELAY_SECONDS debe estar entre 0 y {MAX_RETRY_DELAY_SECONDS}."
-        )
-    if not VERIFICATION_MODEL.strip() or VERIFICATION_MODEL == MODEL:
-        raise ValueError(
-            "GEMINI_VERIFY_MODEL debe ser válido y distinto de GEMINI_MODEL."
-        )
+        raise ValueError("MAX_TASK_DURATION_SECONDS debe superar GEMINI_TIMEOUT_SECONDS.")
     if not 1 <= MAX_ACTIONS <= 60:
         raise ValueError("MAX_SCREEN_ACTIONS debe estar entre 1 y 60.")
-    MODEL = MODEL_MANAGER.selected_primary(MODEL)
     return genai.Client(
         api_key=api_key,
         http_options=types.HttpOptions(
@@ -277,11 +246,13 @@ def create_client() -> genai.Client:
 
 
 def set_primary_model(model: str) -> None:
+    """Reject every runtime model change; the model ID is fixed in code."""
     global MODEL
-    if model == VERIFICATION_MODEL:
-        raise ValueError("El modelo principal debe diferir del modelo verificador.")
-    MODEL_MANAGER.select_primary(model)
-    MODEL = model
+    if model != FIXED_GEMINI_MODEL:
+        raise ValueError(
+            f"BabyJarvis usa exclusivamente {FIXED_GEMINI_MODEL}; no se permite cambiarlo."
+        )
+    MODEL = FIXED_GEMINI_MODEL
 
 
 def _check_task(context: TaskContext, *, respect_pause: bool = True) -> None:
@@ -348,174 +319,37 @@ def _run_api_call(operation, context: TaskContext):
     return result
 
 
-def _is_saturation_error(error: errors.APIError) -> bool:
-    code = getattr(error, "code", None)
-    message = str(error).casefold()
-    return code in {429, 500, 503} or any(
-        marker in message
-        for marker in ("unavailable", "high demand", "overloaded", "resource_exhausted", "too many requests")
-    )
-
-
-def _is_model_compatibility_error(error: errors.APIError) -> bool:
-    if getattr(error, "code", None) != 400:
-        return False
-    message = str(error).casefold()
-    return any(
-        marker in message
-        for marker in (
-            "unsupported image",
-            "image input is not supported",
-            "does not support image",
-            "does not support images",
-            "unsupported modality",
-            "response_mime_type",
-            "structured output is not supported",
-            "json mode is not supported",
-        )
-    )
-
-
-def _generate_with_fallback(
+def _generate_single_model(
     client: genai.Client,
     contents: list[object],
     config: types.GenerateContentConfig,
     context: TaskContext,
-    *,
-    models: tuple[str, ...] | None = None,
 ):
-    models_to_try = list(
-        dict.fromkeys(models or MODEL_MANAGER.candidate_models(MODEL))
-    )
-    last_error: BaseException | None = None
-    last_model: str | None = None
-    for model in models_to_try:
-        if context.activity is not None and model != last_model:
-            message = (
-                f"Cambiando al modelo Gemini {model}."
-                if last_model is not None
-                else f"Usando el modelo Gemini {model}."
-            )
-            context.activity(message)
-        last_model = model
-        for attempt in range(1, MAX_API_ATTEMPTS_PER_MODEL + 1):
-            started_at = time.monotonic()
-            LOGGER.info(
-                "Solicitud Gemini iniciada: modelo=%s intento=%s/%s",
-                model,
-                attempt,
-                MAX_API_ATTEMPTS_PER_MODEL,
-            )
-            try:
-                response = _run_api_call(
-                    lambda: client.models.generate_content(
-                        model=model, contents=contents, config=config
-                    ),
-                    context,
-                )
-            except httpx.TimeoutException as exc:
-                elapsed = time.monotonic() - started_at
-                last_error = exc
-                LOGGER.warning(
-                    "Timeout de Gemini: modelo=%s intento=%s/%s tipo=%s duracion=%.2fs",
-                    model,
-                    attempt,
-                    MAX_API_ATTEMPTS_PER_MODEL,
-                    type(exc).__name__,
-                    elapsed,
-                )
-                if attempt < MAX_API_ATTEMPTS_PER_MODEL:
-                    delay = min(
-                        RETRY_INITIAL_DELAY_SECONDS * (2 ** (attempt - 1)),
-                        MAX_RETRY_DELAY_SECONDS,
-                    )
-                    LOGGER.info(
-                        "Reintento por timeout: modelo=%s en %.2fs", model, delay
-                    )
-                    _sleep_for_task(delay, context)
-                continue
-            except errors.APIError as exc:
-                elapsed = time.monotonic() - started_at
-                code = getattr(exc, "code", None)
-                if code == 404 or _is_model_compatibility_error(exc):
-                    last_error = exc
-                    LOGGER.warning(
-                        "Modelo Gemini no disponible o incompatible: modelo=%s codigo=%s; se probara el siguiente modelo sin reintentar",
-                        model,
-                        code,
-                    )
-                    break
-                if not _is_saturation_error(exc):
-                    LOGGER.error(
-                        "Error HTTP/API de Gemini no recuperable: modelo=%s codigo=%s tipo=%s duracion=%.2fs",
-                        model,
-                        getattr(exc, "code", "desconocido"),
-                        type(exc).__name__,
-                        elapsed,
-                    )
-                    raise
-                last_error = exc
-                LOGGER.warning(
-                    "Saturacion HTTP/API de Gemini: modelo=%s codigo=%s intento=%s/%s duracion=%.2fs",
-                    model,
-                    getattr(exc, "code", "desconocido"),
-                    attempt,
-                    MAX_API_ATTEMPTS_PER_MODEL,
-                    elapsed,
-                )
-                if attempt < MAX_API_ATTEMPTS_PER_MODEL:
-                    delay = min(
-                        RETRY_INITIAL_DELAY_SECONDS * (2 ** (attempt - 1)),
-                        MAX_RETRY_DELAY_SECONDS,
-                    )
-                    LOGGER.info(
-                        "Reintento por saturacion: modelo=%s en %.2fs", model, delay
-                    )
-                    _sleep_for_task(delay, context)
-                else:
-                    LOGGER.warning("Se agotaron los reintentos del modelo %s.", model)
-                    if code == 429:
-                        raise RuntimeError(
-                            "Gemini alcanzó un límite de solicitudes o cuota (HTTP 429); "
-                            "se detuvo el fallback para no multiplicar la carga."
-                        ) from exc
-                continue
-            except (TaskTimeout, TaskCancelled) as exc:
-                elapsed = time.monotonic() - started_at
-                LOGGER.warning(
-                    "Solicitud Gemini interrumpida localmente: modelo=%s tipo=%s duracion=%.2fs",
-                    model,
-                    type(exc).__name__,
-                    elapsed,
-                )
-                raise
-            except Exception as exc:
-                elapsed = time.monotonic() - started_at
-                LOGGER.error(
-                    "Fallo no HTTP/validacion durante la solicitud Gemini: modelo=%s tipo=%s duracion=%.2fs",
-                    model,
-                    type(exc).__name__,
-                    elapsed,
-                )
-                raise
-
-            elapsed = time.monotonic() - started_at
-            LOGGER.info(
-                "Solicitud Gemini completada: modelo=%s intento=%s duracion=%.2fs",
-                model,
-                attempt,
-                elapsed,
-            )
-            if model != MODEL:
-                LOGGER.info("Se utilizo el modelo alternativo %s.", model)
-            return response
-    if isinstance(last_error, httpx.TimeoutException):
-        raise GeminiRequestTimeout(
-            "Gemini excedio el timeout configurado en todos los intentos limitados."
-        ) from last_error
-    raise RuntimeError(
-        "Gemini no estuvo disponible en los modelos configurados; no se ejecutaron acciones nuevas."
-    ) from last_error
+    """Make exactly one request to the fixed model; any failure is fatal."""
+    model = FIXED_GEMINI_MODEL
+    if context.activity is not None:
+        context.activity(f"Usando exclusivamente Gemini {model}; sin fallback ni reintentos.")
+    started_at = time.monotonic()
+    LOGGER.info("Solicitud única a Gemini iniciada: modelo=%s", model)
+    try:
+        response = _run_api_call(
+            lambda: client.models.generate_content(model=model, contents=contents, config=config),
+            context,
+        )
+    except (TaskTimeout, TaskCancelled):
+        raise
+    except Exception as exc:
+        elapsed = time.monotonic() - started_at
+        LOGGER.error(
+            "Fallo definitivo de Gemini: modelo=%s tipo=%s duracion=%.2fs; no habrá reintento ni fallback.",
+            model, type(exc).__name__, elapsed,
+        )
+        raise GeminiFatalError(
+            f"Falló la única solicitud a {model} ({type(exc).__name__}). "
+            "BabyJarvis se detendrá sin reintentar ni cambiar de modelo."
+        ) from exc
+    LOGGER.info("Solicitud única completada: modelo=%s duracion=%.2fs", model, time.monotonic() - started_at)
+    return response
 
 
 def _image_contents(prompt: str, frame: ScreenFrame) -> list[object]:
@@ -544,7 +378,7 @@ def ask_gemini(
         ):
             raise ValueError("El contrato visual envio una imagen invalida.")
         image_bytes = base64.b64decode(image_part["data"], validate=True)
-        response = _generate_with_fallback(
+        response = _generate_single_model(
             client,
             [
                 prompt_part["text"],
@@ -568,13 +402,24 @@ def ask_gemini(
         )
         return response_text
 
-    return suggest_cursor_action(
-        generate,
-        MODEL,
-        task,
-        frame,
-        history=tuple(previous_actions),
-    )
+    try:
+        return suggest_cursor_action(
+            generate,
+            FIXED_GEMINI_MODEL,
+            task,
+            frame,
+            history=tuple(previous_actions),
+            cursor_attempted=context.cursor_attempted,
+            win_r_attempted=context.win_r_attempted,
+            shell_opened=context.shell_opened,
+        )
+    except GeminiFatalError:
+        raise
+    except (ValueError, RuntimeError, TypeError) as exc:
+        raise GeminiFatalError(
+            f"Gemini devolvió una respuesta inválida o coordenadas fuera de la captura "
+            f"({frame.width}x{frame.height}). Se descarta la respuesta y se detiene todo: {exc}"
+        ) from exc
 
 
 def _redacted_actions(actions: list[CursorAction]) -> list[dict[str, object]]:
@@ -711,6 +556,65 @@ def _repeated_click_point(
     return None
 
 
+def _is_windows_run_shortcut(action: CursorAction) -> bool:
+    return (
+        action.action == "press"
+        and len(action.keys) == 2
+        and {key.casefold() for key in action.keys} == {"windows", "r"}
+    )
+
+
+def _validate_strategy_actions(actions: list[CursorAction], context: TaskContext) -> None:
+    """Enforce the cursor -> Win+R -> CMD/PowerShell order in code."""
+    if not context.cursor_attempted:
+        if not actions or actions[0].action not in {"click", "double_click"}:
+            raise GeminiFatalError(
+                "La primera acción debe ser un clic o doble clic visible con el cursor."
+            )
+        if any(
+            action.action == "press"
+            and any(key.casefold() != "enter" for key in action.keys)
+            for action in actions[1:]
+        ):
+            raise GeminiFatalError(
+                "No se permiten atajos de teclado en el primer lote; primero debe observarse el clic."
+            )
+    for action in actions:
+        if _is_windows_run_shortcut(action) and not context.cursor_attempted:
+            raise GeminiFatalError("Win+R fue propuesto antes del intento obligatorio con el cursor.")
+        if action.action != "write":
+            continue
+        text = action.text.strip()
+        lowered = text.casefold()
+        is_shell_launcher = lowered in {"cmd", "powershell", "pwsh"}
+        is_shell_command = bool(re.match(r"(?i)^(?:start|start-process)\\b", text))
+        if is_shell_launcher and not context.win_r_attempted:
+            raise GeminiFatalError("CMD/PowerShell fue propuesto antes de intentar Win+R.")
+        if is_shell_command:
+            if not context.shell_opened:
+                raise GeminiFatalError("Se rechazó un comando porque CMD/PowerShell no fue abierto mediante Win+R.")
+            if not re.fullmatch(r"(?i)(?:start|start-process)\\s+[A-Za-z0-9_.-]+", text):
+                raise GeminiFatalError("Solo se permiten comandos simples start <aplicacion> o Start-Process <aplicacion>.")
+        elif context.shell_opened:
+            raise GeminiFatalError("Con CMD/PowerShell abierto solo se permite un comando simple de lanzamiento.")
+        elif context.win_r_attempted and not is_shell_launcher:
+            if not re.fullmatch(r"[A-Za-z0-9_.:/\\\\-]+", text):
+                raise GeminiFatalError("En Ejecutar solo se permite un nombre o ruta simple de aplicación.")
+
+
+def _record_strategy_progress(action: CursorAction, context: TaskContext) -> None:
+    """Advance strategy flags only after the corresponding input was executed."""
+    if action.action in {"click", "double_click"}:
+        context.cursor_attempted = True
+    if _is_windows_run_shortcut(action):
+        context.win_r_attempted = True
+    if action.action == "write" and context.win_r_attempted and action.text.strip().casefold() in {"cmd", "powershell", "pwsh"}:
+        context.shell_launcher_pending = True
+    if action.action == "press" and "enter" in {key.casefold() for key in action.keys} and context.shell_launcher_pending:
+        context.shell_opened = True
+        context.shell_launcher_pending = False
+
+
 def _execute_action(action: CursorAction, frame: ScreenFrame, context: TaskContext) -> str:
     _check_task(context)
     if action.action == "move":
@@ -758,34 +662,8 @@ def _execute_action(action: CursorAction, frame: ScreenFrame, context: TaskConte
     raise ValueError(f"Accion no permitida: {action.action!r}.")
 
 
-def _select_verification_model() -> str:
-    """Choose a distinct model that passed both text and image compatibility probes."""
-    compatible = tuple(
-        result.model
-        for result in MODEL_MANAGER.fresh_results()
-        if result.classification == "compatible_text_image"
-        and result.model != MODEL
-    )
-    if VERIFICATION_MODEL in compatible:
-        return VERIFICATION_MODEL
-    if compatible:
-        selected = compatible[0]
-        LOGGER.warning(
-            "El modelo verificador configurado (%s) no tiene una prueba vigente; "
-            "se usara el modelo compatible %s.",
-            VERIFICATION_MODEL,
-            selected,
-        )
-        return selected
-    raise RuntimeError(
-        "No hay un modelo verificador independiente con compatibilidad vigente "
-        "para texto e imagen. Ejecuta el diagnostico de modelos Gemini y "
-        "selecciona un modelo distinto del principal."
-    )
-
-
 def _verify_task(client: genai.Client, task: str, context: TaskContext) -> tuple[bool, str]:
-    verification_model = _select_verification_model()
+    """Verify completion with the same fixed model; no secondary model is used."""
     frame = context.capture() if context.capture is not None else capture_screen()
     context.geometry = frame.geometry
     width, height = frame.width, frame.height
@@ -795,35 +673,32 @@ No des por terminado el objetivo por afirmaciones anteriores del asistente; veri
 visible en esta imagen. Si no puedes confirmarlo inequívocamente, completed debe ser false.
 La imagen conserva proporcion y mide {width}x{height}.
 Objetivo del usuario: {json.dumps(task, ensure_ascii=False)}"""
-    response = _generate_with_fallback(
+    response = _generate_single_model(
         client,
         _image_contents(prompt, frame),
-        types.GenerateContentConfig(
-            response_mime_type="application/json", temperature=0, max_output_tokens=200
-        ),
+        types.GenerateContentConfig(response_mime_type="application/json", temperature=0, max_output_tokens=200),
         context,
-        models=(verification_model,),
     )
     try:
         result = json.loads((response.text or "").strip())
     except json.JSONDecodeError as exc:
-        raise RuntimeError("La verificacion visual devolvio JSON invalido.") from exc
+        raise GeminiFatalError(
+            f"La verificación de {FIXED_GEMINI_MODEL} devolvió JSON inválido; se detiene todo."
+        ) from exc
     if (
         not isinstance(result, dict)
         or set(result) != {"completed", "evidence"}
         or not isinstance(result["completed"], bool)
         or not isinstance(result["evidence"], str)
     ):
-        raise RuntimeError("La respuesta de verificacion visual no cumple el contrato.")
+        raise GeminiFatalError(
+            f"La verificación de {FIXED_GEMINI_MODEL} incumplió el contrato; se detiene todo."
+        )
     evidence = result["evidence"].strip()
     completed = result["completed"] and bool(evidence)
     if result["completed"] and not evidence:
         LOGGER.warning("El verificador no devolvio evidencia; no se acepta como exito.")
-    LOGGER.info(
-        "Verificacion visual con modelo distinto y validado (%s): completed=%s",
-        verification_model,
-        completed,
-    )
+    LOGGER.info("Verificacion visual con el modelo unico (%s): completed=%s", FIXED_GEMINI_MODEL, completed)
     return completed, evidence
 
 
@@ -868,36 +743,7 @@ def run_task(
             frame.geometry.left, frame.geometry.top,
             frame.geometry.dpi_awareness, frame.geometry.system_dpi,
         )
-        try:
-            decision = ask_gemini(client, task, frame, history, context)
-        except (ValueError, RuntimeError) as exc:
-            message = _redact_sensitive(str(exc))
-            recoverable_markers = (
-                "coordenadas fuera de la captura",
-                "parámetros de coordenadas",
-                "formato inválido",
-                "formato invalido",
-                "contrato",
-                "lista de acciones",
-            )
-            if not any(marker in message.casefold() for marker in recoverable_markers):
-                raise
-            LOGGER.warning(
-                "Decision visual invalida; se descartaron las acciones y se solicitara "
-                "una nueva observacion: %s",
-                message,
-            )
-            history.append(
-                "La última propuesta fue descartada por validación: "
-                f"{message}. No ejecutes esas coordenadas. Usa la captura NUEVA y "
-                "recalcula desde cero; si el cursor ya falló, cambia de estrategia."
-            )
-            _task_activity(
-                context,
-                "Gemini propuso una acción inválida. Se descartó y se volverá a analizar "
-                "la pantalla con una nueva decisión.",
-            )
-            continue
+        decision = ask_gemini(client, task, frame, history, context)
         actions = decision.actions
         _task_activity(
             context,
@@ -911,22 +757,16 @@ def run_task(
             json.dumps(_redacted_actions(list(actions)), ensure_ascii=False),
         )
         if decision.status == "error":
-            LOGGER.warning(
-                "Gemini informo un obstaculo; se solicitara otra estrategia: %s",
-                _redact_sensitive(decision.message),
-            )
+            LOGGER.warning("Gemini informo un obstaculo; se evaluara la siguiente etapa permitida: %s", _redact_sensitive(decision.message))
+            if context.shell_opened:
+                raise GeminiFatalError("CMD/PowerShell no resolvió la tarea; no existe una acción nativa validada. Se detiene todo.")
+            if not context.cursor_attempted:
+                raise GeminiFatalError("Gemini no pudo identificar un control visible para el primer intento con el cursor.")
             history.append(
-                "Gemini encontró un obstáculo: "
-                f"{_redact_sensitive(decision.message)}. No finalices todavía. "
-                "Vuelve a observar la pantalla y prueba el siguiente método de la "
-                "jerarquía: cursor primero; si ya falló, Win+R; después CMD/PowerShell "
-                "con un comando de lanzamiento seguro; por último API nativa de Windows."
+                "Obstáculo observado: "
+                f"{_redact_sensitive(decision.message)}. Cambia únicamente a la siguiente etapa: Win+R después del clic; luego CMD/PowerShell si Win+R falla."
             )
-            _task_activity(
-                context,
-                "Se detectó un obstáculo. BabyJarvis volverá a observar y probar "
-                "una estrategia alternativa.",
-            )
+            _task_activity(context, "Obstáculo detectado. Se permite avanzar solo a la siguiente estrategia validada.")
             continue
         if decision.status == "success":
             _task_status(context, "thinking")
@@ -948,7 +788,8 @@ def run_task(
             )
             continue
         if decision.status != "continue" or not actions:
-            raise RuntimeError("Gemini devolvio una decision continue sin acciones.")
+            raise GeminiFatalError("Gemini devolvio una decision continue sin acciones; se detiene todo.")
+        _validate_strategy_actions(list(actions), context)
         if len(actions) > MAX_ACTIONS - actions_done:
             LOGGER.warning("Lote completo rechazado: supera el limite global de acciones.")
             _task_activity(context, "El lote supera el límite de acciones restante y se descartó.")
@@ -959,7 +800,9 @@ def run_task(
             if point_reanalyzed == repeated:
                 LOGGER.warning("Tarea detenida tras repetir el pixel (%s,%s) despues de reanalizar.", *repeated)
                 _task_activity(context, "La tarea se detuvo tras repetir el mismo píxel después de reanalizar.")
-                return False
+                raise GeminiFatalError(
+                    f"Se repitió el mismo clic ({repeated[0]},{repeated[1]}) sin progreso; se detiene todo."
+                )
             point_reanalyzed = repeated
             history.append("El lote completo se descarto por proponer mas de dos clics consecutivos en el mismo pixel. Reanaliza la nueva captura y elige una accion distinta.")
             LOGGER.warning("Lote completo descartado por clics repetidos en (%s,%s).", *repeated)
@@ -990,6 +833,7 @@ def run_task(
         for action in actions:
             _check_task(context)
             result = _execute_action(action, frame, context)
+            _record_strategy_progress(action, context)
             last_click_point, consecutive_clicks_at_point = _update_click_state(
                 [action], last_click_point, consecutive_clicks_at_point
             )
@@ -1009,9 +853,8 @@ def run_task(
                     _sleep_for_task(2.0, context)
             _sleep_for_task(0.15, context)
 
-    LOGGER.warning("Tarea detenida al alcanzar %s rondas de decision.", MAX_DECISION_ROUNDS)
-    _task_activity(context, f"Se alcanzó el límite de {MAX_DECISION_ROUNDS} análisis; no se declaró éxito.")
-    return False
+    LOGGER.error("Tarea detenida al alcanzar %s rondas de decision.", MAX_DECISION_ROUNDS)
+    raise GeminiFatalError(f"Se alcanzó el límite de {MAX_DECISION_ROUNDS} decisiones; se detiene todo sin declarar éxito.")
 
 
 def main() -> None:

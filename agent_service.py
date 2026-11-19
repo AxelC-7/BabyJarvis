@@ -17,6 +17,7 @@ from typing import Callable
 
 from gemini_agent import (
     MAX_TASK_DURATION_SECONDS,
+    FIXED_GEMINI_MODEL,
     TaskCancelled,
     TaskContext,
     TaskControl,
@@ -217,13 +218,14 @@ class AgentService:
         return task.task_id
 
     def discover_models(self) -> None:
-        self._queue_model_job("discover")
+        raise RuntimeError(
+            f"El modelo está fijado en {FIXED_GEMINI_MODEL}; la búsqueda de modelos está deshabilitada."
+        )
 
     def test_model_compatibility(self) -> None:
-        models = self._model_manager.fresh_discovered_models()
-        if not models:
-            raise RuntimeError("Primero busca los modelos disponibles.")
-        self._queue_model_job("test", models)
+        raise RuntimeError(
+            f"El modelo está fijado en {FIXED_GEMINI_MODEL}; no se ejecutan pruebas sobre otros modelos."
+        )
 
     def cancel_model_tests(self) -> bool:
         with self._lock:
@@ -244,8 +246,10 @@ class AgentService:
                 raise RuntimeError(
                     "No se puede cambiar el modelo mientras hay tareas o diagnósticos pendientes."
                 )
-        set_primary_model(model)
-        self.events.put(PrimaryModelSelectedEvent(model))
+        if model != FIXED_GEMINI_MODEL:
+            raise ValueError(f"BabyJarvis usa exclusivamente {FIXED_GEMINI_MODEL}; no se permite cambiarlo.")
+        set_primary_model(FIXED_GEMINI_MODEL)
+        self.events.put(PrimaryModelSelectedEvent(FIXED_GEMINI_MODEL))
 
     def model_report(self) -> dict[str, object] | None:
         report = self._model_manager.fresh_report()
@@ -259,9 +263,7 @@ class AgentService:
 
     @property
     def selected_model(self) -> str:
-        import gemini_agent
-
-        return self._model_manager.selected_primary(gemini_agent.MODEL)
+        return FIXED_GEMINI_MODEL
 
     def _queue_model_job(self, operation: str, models: list[str] | None = None) -> None:
         with self._lock:
@@ -555,25 +557,31 @@ class AgentService:
                 self.events.put(StatusEvent(AgentState.STOPPED, task.task_id))
                 self.events.put(TaskFinishedEvent(task.task_id, False))
             except Exception as exc:
-                trace = "".join(
-                    traceback.format_exception(type(exc), exc, exc.__traceback__)
-                )
+                trace = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
                 message = _redact_sensitive(
                     f"{type(exc).__name__}: {exc}\nTRAZA COMPLETA:\n{trace}"
                 )
                 logging.getLogger("gemini_agent").error(
-                    "[tarea %s] Excepción no controlada:\n%s",
-                    task.task_id[:8],
-                    message,
+                    "[tarea %s] Fallo fatal; se detiene el servicio completo:\n%s",
+                    task.task_id[:8], message,
                 )
                 self._archive_trace_event(
-                    task.task_id,
-                    "task_error",
-                    {"error": message, "exception_type": type(exc).__name__},
+                    task.task_id, "task_error",
+                    {"error": message, "exception_type": type(exc).__name__, "service_stopped": True},
                 )
                 self.events.put(ErrorEvent(message, task.task_id))
                 self.events.put(StatusEvent(AgentState.ERROR, task.task_id))
                 self.events.put(TaskFinishedEvent(task.task_id, False))
+                self._startup_error = _redact_sensitive(str(exc))
+                self._shutdown.set()
+                for queued in self._discard_queued_tasks():
+                    if isinstance(queued, _ModelJob):
+                        queued.cancelled.set()
+                        continue
+                    self._archive_trace_event(queued.task_id, "task_discarded", {"reason": "fatal_agent_error"})
+                    self.events.put(StatusEvent(AgentState.STOPPED, queued.task_id))
+                    self.events.put(ActivityEvent("Instrucción descartada porque un error fatal detuvo BabyJarvis.", queued.task_id))
+                    self.events.put(TaskFinishedEvent(queued.task_id, False))
             finally:
                 with self._lock:
                     self._active_task = None

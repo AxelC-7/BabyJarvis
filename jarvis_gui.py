@@ -130,18 +130,21 @@ class JarvisApp:
             actions,
             text="Buscar modelos disponibles",
             command=self._discover_models,
+            state="disabled",
         ).pack(side="left", padx=3)
         ttk.Button(
             actions,
             text="Probar compatibilidad",
             command=self._test_models,
+            state="disabled",
         ).pack(side="left", padx=3)
         ttk.Button(
             actions,
             text="Cancelar pruebas",
             command=self._cancel_model_tests,
+            state="disabled",
         ).pack(side="left", padx=3)
-        self.model_progress_text = tk.StringVar(value="Sin diagnóstico activo.")
+        self.model_progress_text = tk.StringVar(value="Modelo único fijado: gemini-3.8-flash. Sin selector, fallback ni reintentos.")
         ttk.Label(self.models_tab, textvariable=self.model_progress_text).grid(
             row=1, column=0, sticky="ew", padx=10
         )
@@ -182,20 +185,22 @@ class JarvisApp:
         ttk.Label(selection, text="Modelo principal:").grid(
             row=0, column=0, padx=4
         )
-        self.primary_model = tk.StringVar()
+        self.primary_model = tk.StringVar(value="gemini-3.8-flash")
         self.primary_model_combo = ttk.Combobox(
             selection,
             textvariable=self.primary_model,
-            state="readonly",
+            state="disabled",
+            values=("gemini-3.8-flash",),
         )
         self.primary_model_combo.grid(row=0, column=1, sticky="ew", padx=4)
         ttk.Button(
             selection,
             text="Usar como principal",
             command=self._select_primary_model,
+            state="disabled",
         ).grid(row=0, column=2, padx=4)
         self.selected_model_text = tk.StringVar(
-            value=f"Configurado: {self.service.selected_model}"
+            value=f"Modelo fijo: {self.service.selected_model}"
         )
         ttk.Label(selection, textvariable=self.selected_model_text).grid(
             row=1, column=0, columnspan=3, sticky="w", padx=4, pady=(6, 0)
@@ -216,10 +221,7 @@ class JarvisApp:
                 if isinstance(result, dict) and isinstance(result.get("model"), str):
                     self._model_results[result["model"]] = result
         self._render_model_table()
-        selected = report.get("selected_primary")
-        self.selected_model_text.set(
-            f"Configurado: {selected or self.service.selected_model}"
-        )
+        self.selected_model_text.set(f"Modelo fijo: {self.service.selected_model}")
 
     def _render_model_table(self) -> None:
         for item in self.model_table.get_children():
@@ -239,9 +241,11 @@ class JarvisApp:
             self.model_table.insert(
                 "", tk.END, values=(model, status, duration, reason)
             )
-        self.primary_model_combo.configure(values=compatible)
-        if self.primary_model.get() not in compatible:
-            self.primary_model.set(compatible[0] if compatible else "")
+        self.primary_model_combo.configure(
+            values=("gemini-3.8-flash",),
+            state="disabled",
+        )
+        self.primary_model.set("gemini-3.8-flash")
 
     def _discover_models(self) -> None:
         try:
