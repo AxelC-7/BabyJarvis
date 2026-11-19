@@ -1,6 +1,6 @@
 # BabyJarvis
 
-Asistente visual de escritorio para Windows basado en Gemini. La aplicación analiza capturas del monitor principal, propone acciones y solicita autorización antes de ejecutar acciones sensibles.
+Asistente visual de escritorio para Windows basado en Gemini. La aplicación analiza capturas del monitor principal y ejecuta las acciones propuestas en modo autónomo, sin aprobación manual por lote. El usuario conserva pausa y parada de emergencia.
 
 ## Requisitos
 
@@ -69,10 +69,10 @@ Hazla solo después de completar el diagnóstico:
 1. Deja abierta una aplicación no sensible, por ejemplo el Bloc de notas, con un documento vacío.
 2. Envía una instrucción sencilla para abrir una aplicación o mostrar una ventana, sin pedir que escriba, envíe, elimine o guarde información.
 3. Observa la captura y el lote propuesto.
-4. Rechaza cualquier acción que no coincida exactamente con lo que esperas. Autoriza únicamente el lote que entiendas.
+4. Comprueba en la interfaz el lote propuesto y las capturas guardadas. El modo autónomo puede hacer clic, escribir y pulsar teclas sin pedir confirmación.
 5. Comprueba que Jarvis vuelva a capturar la pantalla y que la finalización se confirme mediante verificación visual independiente.
 
-La parada de emergencia cancela la tarea y descarta las instrucciones pendientes. No es una garantía de reversión: una acción que ya se haya ejecutado no se deshace automáticamente.
+El botón **Parada de emergencia** cancela la tarea activa y descarta las instrucciones pendientes. El botón de cierre también solicita la cancelación. No son una garantía de reversión: una acción que ya se haya ejecutado no se deshace automáticamente. La ejecución sigue acotada por los límites globales de duración, rondas y acciones configurados.
 
 ## Pruebas automatizadas
 
@@ -90,7 +90,8 @@ Get-ChildItem -Recurse -Filter *.py |
 
 - Las capturas del monitor principal se envían a Gemini para análisis cuando se ejecuta una tarea.
 - El diagnóstico de compatibilidad utiliza una imagen sintética, no una captura del escritorio.
-- Los lotes de clic, doble clic, arrastre, escritura, teclas y desplazamiento requieren autorización explícita.
+- El modo autónomo no solicita aprobación manual para clics, doble clic, arrastre, escritura, teclas ni desplazamiento.
+- Cada captura tomada durante una tarea se guarda localmente en `debug_captures/` como PNG, junto con un JSON de metadatos (hora, tarea, dimensiones y geometría). La carpeta está excluida de Git; revisa y elimina las capturas cuando ya no las necesites, porque pueden contener información privada.
 - No se deben guardar claves, capturas privadas, diagnósticos del equipo ni logs en Git.
 - La verificación visual es probabilística; revisa el resultado en pantalla y no uses Jarvis para operaciones irreversibles o sensibles.
 
