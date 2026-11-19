@@ -209,17 +209,10 @@ def load_env_file(path: Path) -> None:
 
 
 def create_client() -> genai.Client:
-    """Inicializa exclusivamente el modelo fijo Gemini 3.5 Flash."""
+    """Inicializa el cliente Gemini y restaura el modelo principal seleccionado."""
     global MODEL, TIMEOUT_SECONDS, MAX_ACTIONS, MAX_TASK_DURATION_SECONDS
     load_env_file(BASE_DIR / ".env")
-    configured_model = os.getenv("GEMINI_MODEL")
-    if configured_model and configured_model != FIXED_GEMINI_MODEL:
-        LOGGER.warning(
-            "Se ignora GEMINI_MODEL=%s; BabyJarvis usa exclusivamente %s.",
-            configured_model,
-            FIXED_GEMINI_MODEL,
-        )
-    MODEL = FIXED_GEMINI_MODEL
+    MODEL = MODEL_MANAGER.selected_primary(FIXED_GEMINI_MODEL)
     TIMEOUT_SECONDS = float(os.getenv("GEMINI_TIMEOUT_SECONDS", "60"))
     MAX_ACTIONS = int(os.getenv("MAX_SCREEN_ACTIONS", "8"))
     MAX_TASK_DURATION_SECONDS = float(os.getenv("MAX_TASK_DURATION_SECONDS", "180"))
@@ -246,14 +239,19 @@ def create_client() -> genai.Client:
     )
 
 
+def get_primary_model() -> str:
+    """Return the model currently selected for all task and verification requests."""
+    return MODEL
+
+
 def set_primary_model(model: str) -> None:
-    """Reject every runtime model change; the model ID is fixed in code."""
+    """Persist and activate a model explicitly selected from API discovery."""
     global MODEL
-    if model != FIXED_GEMINI_MODEL:
-        raise ValueError(
-            f"BabyJarvis usa exclusivamente {FIXED_GEMINI_MODEL}; no se permite cambiarlo."
-        )
-    MODEL = FIXED_GEMINI_MODEL
+    normalized = model.strip()
+    if not normalized:
+        raise ValueError("El identificador del modelo no puede estar vacío.")
+    MODEL_MANAGER.select_primary(normalized)
+    MODEL = normalized
 
 
 def _check_task(context: TaskContext, *, respect_pause: bool = True) -> None:
@@ -326,8 +324,8 @@ def _generate_single_model(
     config: types.GenerateContentConfig,
     context: TaskContext,
 ):
-    """Make exactly one request to the fixed model; any failure is fatal."""
-    model = FIXED_GEMINI_MODEL
+    """Make exactly one request to the selected model; any failure is fatal."""
+    model = MODEL
     if context.activity is not None:
         context.activity(f"Usando exclusivamente Gemini {model}; sin fallback ni reintentos.")
     started_at = time.monotonic()
@@ -416,7 +414,7 @@ def ask_gemini(
     try:
         return suggest_cursor_action(
             generate,
-            FIXED_GEMINI_MODEL,
+            MODEL,
             task,
             frame,
             history=tuple(previous_actions),
@@ -748,7 +746,7 @@ Objetivo del usuario: {json.dumps(task, ensure_ascii=False)}"""
         result = json.loads((response.text or "").strip())
     except json.JSONDecodeError as exc:
         raise GeminiFatalError(
-            f"La verificación de {FIXED_GEMINI_MODEL} devolvió JSON inválido; se detiene todo."
+            f"La verificación de {MODEL} devolvió JSON inválido; se detiene todo."
         ) from exc
     if (
         not isinstance(result, dict)
@@ -757,13 +755,13 @@ Objetivo del usuario: {json.dumps(task, ensure_ascii=False)}"""
         or not isinstance(result["evidence"], str)
     ):
         raise GeminiFatalError(
-            f"La verificación de {FIXED_GEMINI_MODEL} incumplió el contrato; se detiene todo."
+            f"La verificación de {MODEL} incumplió el contrato; se detiene todo."
         )
     evidence = result["evidence"].strip()
     completed = result["completed"] and bool(evidence)
     if result["completed"] and not evidence:
         LOGGER.warning("El verificador no devolvio evidencia; no se acepta como exito.")
-    LOGGER.info("Verificacion visual con el modelo unico (%s): completed=%s", FIXED_GEMINI_MODEL, completed)
+    LOGGER.info("Verificacion visual con el modelo seleccionado (%s): completed=%s", MODEL, completed)
     return completed, evidence
 
 
