@@ -5,9 +5,10 @@
 - El prompt principal de percepción y control visual vive en `prompts/desktop_agent.md`.
 - `screen_vision.py` lo lee desde disco en cada decisión y sustituye marcadores con la etapa, solicitud, historial y dimensiones de la captura actual.
 - Si el archivo falta o está incompleto, la decisión falla de forma segura.
-- El Markdown exige coordenadas dentro de los límites exactos de la captura y prohíbe inventar, escalar o extrapolar posiciones.
-- La validación determinista de coordenadas en Python permanece intacta; el prompt no sustituye las barreras del código.
-- Se añadió una prueba automatizada del cargador y de los límites dinámicos de coordenadas.
+- El Markdown exige coordenadas normalizadas de 0 a 1000 por eje; Gemini no debe devolver píxeles.
+- `screen_vision.py` convierte cada punto normalizado a píxeles de la captura y valida el resultado antes de crear acciones. Las capas posteriores reciben únicamente píxeles.
+- Los valores fuera de 0..1000 se rechazan, sin ajuste automático.
+- Se añadieron pruebas para conversión normalizada, límites y puntos de arrastre.
 
 
 ## Configuración activa — 19 de noviembre de 2026
