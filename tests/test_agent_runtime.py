@@ -27,6 +27,9 @@ from screen_vision import CursorAction, ScreenFrame
 
 class AgentRuntimeTests(unittest.TestCase):
     def setUp(self) -> None:
+        verifier_preflight = patch("gemini_agent._verification_models", return_value=("verified-test-model",))
+        verifier_preflight.start()
+        self.addCleanup(verifier_preflight.stop)
         self.geometry = ScreenGeometry(0, 0, 1366, 768)
         self.frame = ScreenFrame(
             png_bytes=b"png",
