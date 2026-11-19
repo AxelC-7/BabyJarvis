@@ -1,6 +1,12 @@
 import unittest
+from unittest.mock import Mock, patch
 
-from desktop_geometry import ScreenGeometry, image_point_to_desktop
+from desktop_geometry import (
+    ScreenGeometry,
+    get_primary_screen_geometry,
+    image_point_to_desktop,
+    rectangle_intersects_geometry,
+)
 
 
 class ImagePointMappingTests(unittest.TestCase):
@@ -38,6 +44,37 @@ class ImagePointMappingTests(unittest.TestCase):
         self.assertEqual(
             image_point_to_desktop(3519, 1259, 3520, 1260, screen),
             (1919, 1079),
+        )
+
+    def test_primary_monitor_capture_geometry_excludes_secondary_monitor(self) -> None:
+        primary = ScreenGeometry(0, 0, 1920, 1080)
+        virtual_desktop = ScreenGeometry(-1280, 0, 3200, 1080)
+        self.assertEqual(primary.width, 1920)
+        self.assertEqual(primary.height, 1080)
+        self.assertEqual(virtual_desktop.width, 3200)
+        self.assertEqual(
+            image_point_to_desktop(1919, 1079, 1920, 1080, primary),
+            (1919, 1079),
+        )
+        self.assertFalse(rectangle_intersects_geometry(1920, 100, 2200, 600, primary))
+        self.assertTrue(rectangle_intersects_geometry(1800, 100, 2000, 600, primary))
+
+    def test_primary_monitor_geometry_uses_primary_system_metrics(self) -> None:
+        user32 = Mock()
+        user32.GetSystemMetrics.side_effect = lambda metric: {0: 1920, 1: 1080}[metric]
+        with (
+            patch("desktop_geometry.sys.platform", "win32"),
+            patch("desktop_geometry.initialize_dpi_awareness", return_value=("per-monitor-v2", 96)),
+            patch("desktop_geometry.ctypes.WinDLL", return_value=user32),
+        ):
+            geometry = get_primary_screen_geometry()
+        self.assertEqual(
+            geometry,
+            ScreenGeometry(0, 0, 1920, 1080, "per-monitor-v2", 96),
+        )
+        self.assertEqual(
+            [call.args[0] for call in user32.GetSystemMetrics.call_args_list],
+            [0, 1],
         )
 
     def test_multiple_capture_sizes_map_to_physical_bounds(self) -> None:

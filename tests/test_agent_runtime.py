@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import httpx
-from google.genai import types
+from google.genai import errors, types
 
 from desktop_geometry import ScreenGeometry
 from gemini_agent import (
@@ -150,6 +150,229 @@ class AgentRuntimeTests(unittest.TestCase):
             )
         self.assertIs(result, response)
         self.assertEqual(call.call_count, 2)
+
+    def test_primary_model_404_tries_fallback_once_without_repeating_primary(self) -> None:
+        context = TaskContext(
+            deadline=time.monotonic() + 10,
+            geometry=self.geometry,
+            cancelled=threading.Event(),
+        )
+        response = object()
+        not_found = errors.APIError(
+            code=404,
+            response_json={
+                "error": {
+                    "code": 404,
+                    "message": "model is not available for this account",
+                    "status": "NOT_FOUND",
+                }
+            },
+        )
+        client = SimpleNamespace(
+            models=SimpleNamespace(
+                generate_content=Mock(side_effect=[not_found, response])
+            )
+        )
+
+        result = _generate_with_fallback(
+            client,
+            [],
+            types.GenerateContentConfig(),
+            context,
+            models=("primary-model", "fallback-model"),
+        )
+
+        self.assertIs(result, response)
+        calls = client.models.generate_content.call_args_list
+        self.assertEqual(
+            [call.kwargs["model"] for call in calls],
+            ["primary-model", "fallback-model"],
+        )
+
+    def test_model_changes_are_reported_to_task_activity(self) -> None:
+        context = TaskContext(
+            deadline=time.monotonic() + 10,
+            geometry=self.geometry,
+            cancelled=threading.Event(),
+        )
+        messages = []
+        context.activity = messages.append
+        not_found = errors.APIError(
+            code=404,
+            response_json={
+                "error": {
+                    "code": 404,
+                    "message": "model is not available",
+                    "status": "NOT_FOUND",
+                }
+            },
+        )
+        client = SimpleNamespace(
+            models=SimpleNamespace(
+                generate_content=Mock(
+                    side_effect=[not_found, SimpleNamespace(text="ok")]
+                )
+            )
+        )
+
+        _generate_with_fallback(
+            client,
+            [],
+            types.GenerateContentConfig(),
+            context,
+            models=("primary-model", "fallback-model"),
+        )
+
+        self.assertEqual(
+            messages,
+            [
+                "Usando el modelo Gemini primary-model.",
+                "Cambiando al modelo Gemini fallback-model.",
+            ],
+        )
+
+    def test_incompatible_model_request_uses_next_verified_candidate(self) -> None:
+        context = TaskContext(
+            deadline=time.monotonic() + 10,
+            geometry=self.geometry,
+            cancelled=threading.Event(),
+        )
+        incompatible = errors.APIError(
+            code=400,
+            response_json={
+                "error": {
+                    "code": 400,
+                    "message": "This model does not support image input",
+                    "status": "INVALID_ARGUMENT",
+                }
+            },
+        )
+        client = SimpleNamespace(
+            models=SimpleNamespace(
+                generate_content=Mock(
+                    side_effect=[incompatible, SimpleNamespace(text="ok")]
+                )
+            )
+        )
+
+        with patch(
+            "gemini_agent.MODEL_MANAGER.candidate_models",
+            return_value=("primary-model", "verified-fallback"),
+        ):
+            result = _generate_with_fallback(
+                client,
+                [],
+                types.GenerateContentConfig(),
+                context,
+            )
+
+        self.assertEqual(result.text, "ok")
+        self.assertEqual(
+            [call.kwargs["model"] for call in client.models.generate_content.call_args_list],
+            ["primary-model", "verified-fallback"],
+        )
+
+    def test_404_tries_each_configured_model_once(self) -> None:
+        context = TaskContext(
+            deadline=time.monotonic() + 10,
+            geometry=self.geometry,
+            cancelled=threading.Event(),
+        )
+        not_found = errors.APIError(
+            code=404,
+            response_json={"error": {"message": "model not found"}},
+        )
+        client = SimpleNamespace(
+            models=SimpleNamespace(
+                generate_content=Mock(side_effect=[not_found, not_found])
+            )
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "no estuvo disponible"):
+            _generate_with_fallback(
+                client,
+                [],
+                types.GenerateContentConfig(),
+                context,
+                models=("primary-model", "fallback-model"),
+            )
+
+        calls = client.models.generate_content.call_args_list
+        self.assertEqual(
+            [call.kwargs["model"] for call in calls],
+            ["primary-model", "fallback-model"],
+        )
+
+    def test_temporary_http_errors_keep_bounded_retries(self) -> None:
+        for code in (429, 500, 503):
+            with self.subTest(code=code):
+                context = TaskContext(
+                    deadline=time.monotonic() + 10,
+                    geometry=self.geometry,
+                    cancelled=threading.Event(),
+                )
+                temporary_error = errors.APIError(
+                    code=code,
+                    response_json={
+                        "error": {
+                            "code": code,
+                            "message": "temporary service failure",
+                            "status": "UNAVAILABLE",
+                        }
+                    },
+                )
+                response = object()
+                client = SimpleNamespace(
+                    models=SimpleNamespace(
+                        generate_content=Mock(
+                            side_effect=[temporary_error, response]
+                        )
+                    )
+                )
+                with patch("gemini_agent._sleep_for_task") as sleep:
+                    result = _generate_with_fallback(
+                        client,
+                        [],
+                        types.GenerateContentConfig(),
+                        context,
+                        models=("test-model",),
+                    )
+
+                self.assertIs(result, response)
+                self.assertEqual(client.models.generate_content.call_count, 2)
+                sleep.assert_called_once()
+
+    def test_http_429_retries_current_model_but_does_not_fan_out(self) -> None:
+        context = TaskContext(
+            deadline=time.monotonic() + 10,
+            geometry=self.geometry,
+            cancelled=threading.Event(),
+        )
+        quota = errors.APIError(
+            429,
+            {"error": {"code": 429, "message": "quota exceeded", "status": "RESOURCE_EXHAUSTED"}},
+        )
+        client = SimpleNamespace(
+            models=SimpleNamespace(
+                generate_content=Mock(side_effect=[quota, quota])
+            )
+        )
+        with (
+            patch("gemini_agent.MAX_API_ATTEMPTS_PER_MODEL", 2),
+            patch("gemini_agent._sleep_for_task"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "cuota"):
+                _generate_with_fallback(
+                    client,
+                    [],
+                    types.GenerateContentConfig(),
+                    context,
+                    models=("primary", "fallback"),
+                )
+        self.assertEqual(
+            [call.kwargs["model"] for call in client.models.generate_content.call_args_list],
+            ["primary", "primary"],
+        )
 
     def test_non_timeout_validation_error_is_not_retried(self) -> None:
         context = TaskContext(

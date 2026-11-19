@@ -11,6 +11,8 @@ from agent_service import (
     AgentState,
     CaptureRequestEvent,
     ErrorEvent,
+    ModelDiagnosticsCompletedEvent,
+    ModelsDiscoveredEvent,
     ScreenshotEvent,
     StatusEvent,
     TaskFinishedEvent,
@@ -127,6 +129,65 @@ class AgentServiceTests(unittest.TestCase):
         self.assertTrue(result.get_nowait())
         self.assertEqual(proposal.actions, (action,))
 
+    def test_rejection_does_not_authorize_the_proposed_batch(self) -> None:
+        service = self.make_service(lambda *_args, **_kwargs: True)
+        context = TaskContext(
+            deadline=time.monotonic() + 2,
+            geometry=self.geometry,
+            cancelled=threading.Event(),
+        )
+        result: queue.Queue[bool] = queue.Queue()
+        actions = (CursorAction("write", text="test"),)
+        with patch("gemini_agent._check_task"):
+            worker = threading.Thread(
+                target=lambda: result.put(
+                    service._propose_batch(
+                        type("Task", (), {"task_id": "task-reject"})(),
+                        actions,
+                        self.frame,
+                        True,
+                        context,
+                    )
+                )
+            )
+            worker.start()
+            proposal = self.next_event(service, ActionProposalEvent)
+            service.authorize(proposal.batch_id, proposal.actions, False)
+            worker.join(1)
+
+        self.assertFalse(worker.is_alive())
+        self.assertFalse(result.get_nowait())
+
+    def test_authorization_from_another_batch_is_ignored(self) -> None:
+        service = self.make_service(lambda *_args, **_kwargs: True)
+        context = TaskContext(
+            deadline=time.monotonic() + 2,
+            geometry=self.geometry,
+            cancelled=threading.Event(),
+        )
+        result: queue.Queue[bool] = queue.Queue()
+        actions = (CursorAction("click", x=8, y=12),)
+        with patch("gemini_agent._check_task"):
+            worker = threading.Thread(
+                target=lambda: result.put(
+                    service._propose_batch(
+                        type("Task", (), {"task_id": "task-other-batch"})(),
+                        actions,
+                        self.frame,
+                        True,
+                        context,
+                    )
+                )
+            )
+            worker.start()
+            proposal = self.next_event(service, ActionProposalEvent)
+            service.authorize("different-batch-id", proposal.actions, True)
+            service.authorize(proposal.batch_id, proposal.actions, True)
+            worker.join(1)
+
+        self.assertFalse(worker.is_alive())
+        self.assertTrue(result.get_nowait())
+
     def test_expired_authorization_is_rejected(self) -> None:
         service = self.make_service(
             lambda *_args, **_kwargs: True,
@@ -234,5 +295,77 @@ class AgentServiceTests(unittest.TestCase):
         self.assertEqual(result.get_nowait(), self.frame)
         screenshot = self.next_event(service, ScreenshotEvent)
         self.assertEqual(screenshot.frame, self.frame)
+
+    def test_model_discovery_and_compatibility_tests_use_worker_queue(self) -> None:
+        class FakeModelManager:
+            def fresh_report(self):
+                return {"discovered_models": ["model-a"]}
+
+            def fresh_discovered_models(self):
+                return ["model-a"]
+
+            def discover_models(self, client, *, cancelled, progress):
+                progress("discover", 1, None, "model-a")
+                return ["model-a"]
+
+            def test_models(self, client, models, *, cancelled, progress):
+                from gemini_model_manager import ModelDiagnosticResult
+
+                progress("test", 1, 1, models[0])
+                return [
+                    ModelDiagnosticResult(
+                        models[0], "compatible_text_image", 0.1, 0.05, 0.05
+                    )
+                ]
+
+        service = AgentService(
+            client_factory=lambda: object(),
+            task_runner=lambda *_args, **_kwargs: True,
+            model_manager=FakeModelManager(),
+        )
+        self.services.append(service)
+        service.start()
+
+        service.discover_models()
+        discovered = self.next_event(service, ModelsDiscoveredEvent)
+        self.assertEqual(discovered.models, ("model-a",))
+
+        service.test_model_compatibility()
+        results = self.next_event(service, ModelDiagnosticsCompletedEvent)
+        self.assertEqual(results.results[0].model, "model-a")
+        self.assertFalse(results.cancelled)
+
+    def test_cancel_model_diagnostics_sets_the_running_cancellation_event(self) -> None:
+        started = threading.Event()
+        release = threading.Event()
+
+        class BlockingModelManager:
+            def fresh_report(self):
+                return {"discovered_models": ["model-a"]}
+
+            def fresh_discovered_models(self):
+                return ["model-a"]
+
+            def discover_models(self, client, *, cancelled, progress):
+                started.set()
+                release.wait(1)
+                return []
+
+            def test_models(self, *_args, **_kwargs):
+                return []
+
+        service = AgentService(
+            client_factory=lambda: object(),
+            task_runner=lambda *_args, **_kwargs: True,
+            model_manager=BlockingModelManager(),
+        )
+        self.services.append(service)
+        service.start()
+        service.discover_models()
+        self.assertTrue(started.wait(1))
+
+        self.assertTrue(service.cancel_model_tests())
+        self.assertFalse(service.cancel_model_tests())
+        release.set()
 if __name__ == "__main__":
     unittest.main()

@@ -16,11 +16,14 @@ from gemini_agent import (
     TaskCancelled,
     TaskContext,
     TaskControl,
+    MODEL_MANAGER,
     _authorization_summary,
     _redact_sensitive,
     create_client,
     run_task,
+    set_primary_model,
 )
+from gemini_model_manager import ModelDiagnosticResult
 from screen_vision import CursorAction, ScreenFrame, capture_screen
 
 
@@ -84,6 +87,30 @@ class TaskFinishedEvent:
     success: bool
 
 
+@dataclass(frozen=True)
+class ModelProgressEvent:
+    operation: str
+    completed: int
+    total: int | None
+    model: str
+
+
+@dataclass(frozen=True)
+class ModelsDiscoveredEvent:
+    models: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ModelDiagnosticsCompletedEvent:
+    results: tuple[ModelDiagnosticResult, ...]
+    cancelled: bool
+
+
+@dataclass(frozen=True)
+class PrimaryModelSelectedEvent:
+    model: str
+
+
 AgentEvent = (
     StatusEvent
     | ActivityEvent
@@ -92,6 +119,10 @@ AgentEvent = (
     | CaptureRequestEvent
     | ErrorEvent
     | TaskFinishedEvent
+    | ModelProgressEvent
+    | ModelsDiscoveredEvent
+    | ModelDiagnosticsCompletedEvent
+    | PrimaryModelSelectedEvent
 )
 
 
@@ -108,6 +139,13 @@ class _AuthorizationResponse:
     approved: bool
 
 
+@dataclass(frozen=True)
+class _ModelJob:
+    operation: str
+    cancelled: threading.Event
+    models: tuple[str, ...] = ()
+
+
 class AgentService:
     """Owns the sole worker that may control the desktop."""
 
@@ -118,14 +156,16 @@ class AgentService:
         task_runner: Callable[..., bool] = run_task,
         authorization_timeout: float = AUTHORIZATION_TIMEOUT_SECONDS,
         task_duration: float = MAX_TASK_DURATION_SECONDS,
+        model_manager=MODEL_MANAGER,
     ) -> None:
         self.events: queue.Queue[AgentEvent] = queue.Queue()
-        self._tasks: queue.Queue[_Task] = queue.Queue()
+        self._tasks: queue.Queue[_Task | _ModelJob] = queue.Queue()
         self._authorization_responses: queue.Queue[_AuthorizationResponse] = queue.Queue()
         self._client_factory = client_factory
         self._task_runner = task_runner
         self._authorization_timeout = authorization_timeout
         self._task_duration = task_duration
+        self._model_manager = model_manager
         self._shutdown = threading.Event()
         self._lock = threading.Lock()
         self._active_task: _Task | None = None
@@ -135,6 +175,8 @@ class AgentService:
         self._resume_state = AgentState.THINKING
         self._worker: threading.Thread | None = None
         self._startup_error: str | None = None
+        self._model_job_cancelled: threading.Event | None = None
+        self._model_job_queued = False
 
     @property
     def worker_alive(self) -> bool:
@@ -165,6 +207,73 @@ class AgentService:
         self.events.put(StatusEvent(AgentState.QUEUED, task.task_id))
         self.events.put(ActivityEvent("Instrucción agregada a la cola.", task.task_id))
         return task.task_id
+
+    def discover_models(self) -> None:
+        self._queue_model_job("discover")
+
+    def test_model_compatibility(self) -> None:
+        models = self._model_manager.fresh_discovered_models()
+        if not models:
+            raise RuntimeError("Primero busca los modelos disponibles.")
+        self._queue_model_job("test", models)
+
+    def cancel_model_tests(self) -> bool:
+        with self._lock:
+            event = self._model_job_cancelled
+        if event is None or event.is_set():
+            return False
+        event.set()
+        return True
+
+    def select_primary_model(self, model: str) -> None:
+        with self._lock:
+            if (
+                self._active_task is not None
+                or self._active_control is not None
+                or self._model_job_queued
+                or not self._tasks.empty()
+            ):
+                raise RuntimeError(
+                    "No se puede cambiar el modelo mientras hay tareas o diagnósticos pendientes."
+                )
+        set_primary_model(model)
+        self.events.put(PrimaryModelSelectedEvent(model))
+
+    def model_report(self) -> dict[str, object] | None:
+        report = self._model_manager.fresh_report()
+        if report is None:
+            return None
+        report["discovered_models"] = self._model_manager.fresh_discovered_models()
+        if not self._model_manager.results_are_fresh():
+            report["results"] = []
+            report["selected_primary"] = None
+        return report
+
+    @property
+    def selected_model(self) -> str:
+        import gemini_agent
+
+        return self._model_manager.selected_primary(gemini_agent.MODEL)
+
+    def _queue_model_job(self, operation: str, models: list[str] | None = None) -> None:
+        with self._lock:
+            if self._shutdown.is_set():
+                raise RuntimeError("El servicio está detenido.")
+            if self._startup_error is not None:
+                raise RuntimeError("Gemini no pudo inicializarse.")
+            if self._model_job_queued:
+                raise RuntimeError("Ya hay un diagnóstico de modelos en curso o en cola.")
+            cancelled = threading.Event()
+            self._model_job_cancelled = cancelled
+            self._model_job_queued = True
+            self._tasks.put(_ModelJob(operation, cancelled, tuple(models or ())))
+        self.events.put(
+            ActivityEvent(
+                "Búsqueda de modelos agregada a la cola."
+                if operation == "discover"
+                else "Prueba de compatibilidad agregada a la cola."
+            )
+        )
 
     def authorize(
         self, batch_id: str, actions: tuple[CursorAction, ...], approved: bool
@@ -206,12 +315,23 @@ class AgentService:
             if control is not None:
                 control.cancelled.set()
                 control.paused.clear()
+            diagnostic_cancel = self._model_job_cancelled
+            if diagnostic_cancel is not None:
+                diagnostic_cancel.set()
             self._active_batch_id = None
         discarded = self._discard_queued_tasks()
         if task is not None:
             self.events.put(StatusEvent(AgentState.STOPPED, task.task_id))
             self.events.put(ActivityEvent("Parada de emergencia solicitada.", task.task_id))
         for queued in discarded:
+            if isinstance(queued, _ModelJob):
+                queued.cancelled.set()
+                with self._lock:
+                    if self._model_job_cancelled is queued.cancelled:
+                        self._model_job_cancelled = None
+                        self._model_job_queued = False
+                self.events.put(ModelDiagnosticsCompletedEvent((), True))
+                continue
             self.events.put(StatusEvent(AgentState.STOPPED, queued.task_id))
             self.events.put(ActivityEvent("Instrucción descartada por parada de emergencia.", queued.task_id))
         self._discard_authorization_responses()
@@ -222,8 +342,8 @@ class AgentService:
         if wait and self._worker is not None:
             self._worker.join(timeout)
 
-    def _discard_queued_tasks(self) -> list[_Task]:
-        discarded: list[_Task] = []
+    def _discard_queued_tasks(self) -> list[_Task | _ModelJob]:
+        discarded: list[_Task | _ModelJob] = []
         while True:
             try:
                 discarded.append(self._tasks.get_nowait())
@@ -344,6 +464,9 @@ class AgentService:
             self.events.put(ErrorEvent(self._startup_error))
             self.events.put(StatusEvent(AgentState.ERROR))
             for task in self._discard_queued_tasks():
+                if isinstance(task, _ModelJob):
+                    task.cancelled.set()
+                    continue
                 self.events.put(StatusEvent(AgentState.STOPPED, task.task_id))
                 self.events.put(
                     ActivityEvent(
@@ -358,6 +481,9 @@ class AgentService:
             try:
                 task = self._tasks.get(timeout=0.05)
             except queue.Empty:
+                continue
+            if isinstance(task, _ModelJob):
+                self._run_model_job(client, task)
                 continue
             control = TaskControl()
             with self._lock:
@@ -401,3 +527,38 @@ class AgentService:
         if context is None:
             raise RuntimeError("El contexto de tarea no está disponible para capturar.")
         return self._capture(task, context)
+
+    def _run_model_job(self, client: object, job: _ModelJob) -> None:
+        try:
+            progress = lambda operation, completed, total, model: self.events.put(
+                ModelProgressEvent(operation, completed, total, model)
+            )
+            if job.operation == "discover":
+                models = self._model_manager.discover_models(
+                    client,
+                    cancelled=job.cancelled,
+                    progress=progress,
+                )
+                self.events.put(ModelsDiscoveredEvent(tuple(models)))
+                if not job.cancelled.is_set():
+                    self.events.put(
+                        ActivityEvent(f"Se encontraron {len(models)} modelos compatibles con generateContent.")
+                    )
+            else:
+                results = self._model_manager.test_models(
+                    client,
+                    job.models,
+                    cancelled=job.cancelled,
+                    progress=progress,
+                )
+                self.events.put(
+                    ModelDiagnosticsCompletedEvent(
+                        tuple(results), job.cancelled.is_set()
+                    )
+                )
+        except Exception as exc:
+            self.events.put(ErrorEvent(_redact_sensitive(str(exc))))
+        finally:
+            with self._lock:
+                self._model_job_cancelled = None
+                self._model_job_queued = False

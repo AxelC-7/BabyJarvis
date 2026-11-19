@@ -35,6 +35,7 @@ from cursor_control import (
     type_text,
 )
 from desktop_geometry import ScreenGeometry, get_screen_geometry
+from gemini_model_manager import GeminiModelManager
 from screen_vision import (
     AgentDecision,
     CursorAction,
@@ -56,10 +57,10 @@ AUTHORIZATION_TIMEOUT_SECONDS = 30.0
 MAX_API_ATTEMPTS_PER_MODEL = int(os.getenv("GEMINI_MAX_ATTEMPTS_PER_MODEL", "2"))
 RETRY_INITIAL_DELAY_SECONDS = float(os.getenv("GEMINI_RETRY_DELAY_SECONDS", "1"))
 MAX_RETRY_DELAY_SECONDS = 8.0
-FALLBACK_MODELS = ("gemini-2.5-flash-lite",)
 MAX_DECISION_ROUNDS = 10
 
 LOGGER = logging.getLogger("gemini_agent")
+MODEL_MANAGER = GeminiModelManager()
 
 
 def _redact_sensitive(text: str) -> str:
@@ -212,6 +213,7 @@ def create_client() -> genai.Client:
     global MODEL, VERIFICATION_MODEL, TIMEOUT_SECONDS, MAX_ACTIONS
     global MAX_TASK_DURATION_SECONDS, MAX_API_ATTEMPTS_PER_MODEL
     global RETRY_INITIAL_DELAY_SECONDS
+    global MODEL_MANAGER
     load_env_file(BASE_DIR / ".env")
     MODEL = os.getenv("GEMINI_MODEL", MODEL)
     VERIFICATION_MODEL = os.getenv("GEMINI_VERIFY_MODEL", VERIFICATION_MODEL)
@@ -226,6 +228,11 @@ def create_client() -> genai.Client:
     RETRY_INITIAL_DELAY_SECONDS = float(
         os.getenv("GEMINI_RETRY_DELAY_SECONDS", "1")
     )
+    MODEL_MANAGER.ttl_hours = float(
+        os.getenv("GEMINI_MODEL_DIAGNOSTICS_TTL_HOURS", "168")
+    )
+    if not math.isfinite(MODEL_MANAGER.ttl_hours) or MODEL_MANAGER.ttl_hours <= 0:
+        raise ValueError("GEMINI_MODEL_DIAGNOSTICS_TTL_HOURS debe ser positivo.")
     if os.getenv("GEMINI_KEY_ROTATED", "").casefold() != "true":
         raise RuntimeError(
             "Gemini esta bloqueado hasta reemplazar la clave expuesta y "
@@ -259,6 +266,7 @@ def create_client() -> genai.Client:
         )
     if not 1 <= MAX_ACTIONS <= 30:
         raise ValueError("MAX_SCREEN_ACTIONS debe estar entre 1 y 30.")
+    MODEL = MODEL_MANAGER.selected_primary(MODEL)
     return genai.Client(
         api_key=api_key,
         http_options=types.HttpOptions(
@@ -266,6 +274,14 @@ def create_client() -> genai.Client:
             retry_options=types.HttpRetryOptions(attempts=1),
         ),
     )
+
+
+def set_primary_model(model: str) -> None:
+    global MODEL
+    if model == VERIFICATION_MODEL:
+        raise ValueError("El modelo principal debe diferir del modelo verificador.")
+    MODEL_MANAGER.select_primary(model)
+    MODEL = model
 
 
 def _check_task(context: TaskContext, *, respect_pause: bool = True) -> None:
@@ -335,9 +351,28 @@ def _run_api_call(operation, context: TaskContext):
 def _is_saturation_error(error: errors.APIError) -> bool:
     code = getattr(error, "code", None)
     message = str(error).casefold()
-    return code in {429, 503} or any(
+    return code in {429, 500, 503} or any(
         marker in message
         for marker in ("unavailable", "high demand", "overloaded", "resource_exhausted", "too many requests")
+    )
+
+
+def _is_model_compatibility_error(error: errors.APIError) -> bool:
+    if getattr(error, "code", None) != 400:
+        return False
+    message = str(error).casefold()
+    return any(
+        marker in message
+        for marker in (
+            "unsupported image",
+            "image input is not supported",
+            "does not support image",
+            "does not support images",
+            "unsupported modality",
+            "response_mime_type",
+            "structured output is not supported",
+            "json mode is not supported",
+        )
     )
 
 
@@ -349,9 +384,20 @@ def _generate_with_fallback(
     *,
     models: tuple[str, ...] | None = None,
 ):
-    models_to_try = list(dict.fromkeys(models or (MODEL, *FALLBACK_MODELS)))
+    models_to_try = list(
+        dict.fromkeys(models or MODEL_MANAGER.candidate_models(MODEL))
+    )
     last_error: BaseException | None = None
+    last_model: str | None = None
     for model in models_to_try:
+        if context.activity is not None and model != last_model:
+            message = (
+                f"Cambiando al modelo Gemini {model}."
+                if last_model is not None
+                else f"Usando el modelo Gemini {model}."
+            )
+            context.activity(message)
+        last_model = model
         for attempt in range(1, MAX_API_ATTEMPTS_PER_MODEL + 1):
             started_at = time.monotonic()
             LOGGER.info(
@@ -390,6 +436,15 @@ def _generate_with_fallback(
                 continue
             except errors.APIError as exc:
                 elapsed = time.monotonic() - started_at
+                code = getattr(exc, "code", None)
+                if code == 404 or _is_model_compatibility_error(exc):
+                    last_error = exc
+                    LOGGER.warning(
+                        "Modelo Gemini no disponible o incompatible: modelo=%s codigo=%s; se probara el siguiente modelo sin reintentar",
+                        model,
+                        code,
+                    )
+                    break
                 if not _is_saturation_error(exc):
                     LOGGER.error(
                         "Error HTTP/API de Gemini no recuperable: modelo=%s codigo=%s tipo=%s duracion=%.2fs",
@@ -419,6 +474,11 @@ def _generate_with_fallback(
                     _sleep_for_task(delay, context)
                 else:
                     LOGGER.warning("Se agotaron los reintentos del modelo %s.", model)
+                    if code == 429:
+                        raise RuntimeError(
+                            "Gemini alcanzó un límite de solicitudes o cuota (HTTP 429); "
+                            "se detuvo el fallback para no multiplicar la carga."
+                        ) from exc
                 continue
             except (TaskTimeout, TaskCancelled) as exc:
                 elapsed = time.monotonic() - started_at

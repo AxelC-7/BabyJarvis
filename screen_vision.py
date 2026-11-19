@@ -15,7 +15,7 @@ from typing import Callable, Iterator, Literal
 
 from desktop_geometry import (
     ScreenGeometry,
-    get_screen_geometry,
+    get_primary_screen_geometry,
     image_point_to_desktop,
 )
 from cursor_control import validate_key
@@ -160,8 +160,8 @@ def _encode_png(bgra: bytes, width: int, height: int) -> bytes:
 
 
 def capture_screen() -> ScreenFrame:
-    """Capture all monitors as one PNG without writing the image to disk."""
-    geometry = get_screen_geometry()
+    """Capture the primary monitor as one PNG without writing it to disk."""
+    geometry = get_primary_screen_geometry()
     user32, gdi32 = _windows_apis()
     width = geometry.width
     height = geometry.height

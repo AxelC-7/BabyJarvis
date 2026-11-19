@@ -10,6 +10,8 @@ _SM_XVIRTUALSCREEN = 76
 _SM_YVIRTUALSCREEN = 77
 _SM_CXVIRTUALSCREEN = 78
 _SM_CYVIRTUALSCREEN = 79
+_SM_CXSCREEN = 0
+_SM_CYSCREEN = 1
 _DPI_AWARENESS = {
     0: "unaware",
     1: "system-aware",
@@ -113,6 +115,42 @@ def get_screen_geometry() -> ScreenGeometry:
             f"{geometry.width}x{geometry.height}."
         )
     return geometry
+
+
+def get_primary_screen_geometry() -> ScreenGeometry:
+    """Read the primary monitor bounds in physical desktop coordinates."""
+    if sys.platform != "win32":
+        raise OSError("La geometría del escritorio está implementada para Windows.")
+    dpi_awareness, system_dpi = initialize_dpi_awareness()
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    user32.GetSystemMetrics.argtypes = [ctypes.c_int]
+    user32.GetSystemMetrics.restype = ctypes.c_int
+    geometry = ScreenGeometry(
+        left=0,
+        top=0,
+        width=user32.GetSystemMetrics(_SM_CXSCREEN),
+        height=user32.GetSystemMetrics(_SM_CYSCREEN),
+        dpi_awareness=dpi_awareness,
+        system_dpi=system_dpi,
+    )
+    if geometry.width <= 0 or geometry.height <= 0:
+        raise RuntimeError(
+            "Windows devolvió dimensiones inválidas para el monitor principal: "
+            f"{geometry.width}x{geometry.height}."
+        )
+    return geometry
+
+
+def rectangle_intersects_geometry(
+    left: int, top: int, right: int, bottom: int, geometry: ScreenGeometry
+) -> bool:
+    """Return whether a half-open rectangle overlaps a screen geometry."""
+    return (
+        left < geometry.right
+        and geometry.left < right
+        and top < geometry.bottom
+        and geometry.top < bottom
+    )
 
 
 def image_point_to_desktop(
