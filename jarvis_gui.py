@@ -193,12 +193,12 @@ class JarvisApp:
             values=(self.service.selected_model,),
         )
         self.primary_model_combo.grid(row=0, column=1, sticky="ew", padx=4)
-        ttk.Button(
+        self.select_primary_button = ttk.Button(
             selection,
             text="Usar como principal",
             command=self._select_primary_model,
-            state="disabled",
-        ).grid(row=0, column=2, padx=4)
+        )
+        self.select_primary_button.grid(row=0, column=2, padx=4)
         self.selected_model_text = tk.StringVar(
             value=f"Modelo fijo: {self.service.selected_model}"
         )
@@ -221,13 +221,12 @@ class JarvisApp:
                 if isinstance(result, dict) and isinstance(result.get("model"), str):
                     self._model_results[result["model"]] = result
         self._render_model_table()
-        self.selected_model_text.set(f"Modelo fijo: {self.service.selected_model}")
+        self.selected_model_text.set(f"Modelo principal: {self.service.selected_model}")
 
     def _render_model_table(self) -> None:
         for item in self.model_table.get_children():
             self.model_table.delete(item)
         names = list(dict.fromkeys(self._discovered_models + list(self._model_results)))
-        compatible = []
         for model in names:
             result = self._model_results.get(model)
             if result is None:
@@ -236,16 +235,20 @@ class JarvisApp:
                 status = str(result.get("classification", "Error desconocido"))
                 duration = str(result.get("duration_seconds", ""))
                 reason = str(result.get("reason", ""))
-                if status == "compatible_text_image":
-                    compatible.append(model)
             self.model_table.insert(
                 "", tk.END, values=(model, status, duration, reason)
             )
+        available = list(dict.fromkeys(names))
         self.primary_model_combo.configure(
-            values=(self.service.selected_model,),
-            state="disabled",
+            values=available,
+            state="readonly" if available else "disabled",
         )
-        self.primary_model.set(self.service.selected_model)
+        if self.service.selected_model in available:
+            self.primary_model.set(self.service.selected_model)
+        elif available:
+            self.primary_model.set(available[0])
+        else:
+            self.primary_model.set(self.service.selected_model)
 
     def _discover_models(self) -> None:
         try:
@@ -365,7 +368,7 @@ class JarvisApp:
             self._discovered_models = list(event.models)
             self._render_model_table()
             self.model_progress_text.set(
-                f"Encontrados {len(event.models)} modelos con generateContent."
+                f"Encontrados {len(event.models)} modelos devueltos por la API Gemini (sin filtros de compatibilidad)."
             )
         elif isinstance(event, ModelDiagnosticsCompletedEvent):
             self.model_progress.stop()
@@ -385,7 +388,8 @@ class JarvisApp:
                 f"Pruebas terminadas{suffix}: {len(event.results)} resultado(s)."
             )
         elif isinstance(event, PrimaryModelSelectedEvent):
-            self.selected_model_text.set(f"Configurado: {event.model}")
+            self.primary_model.set(event.model)
+            self.selected_model_text.set(f"Modelo principal: {event.model}")
             self._append_activity(f"Modelo principal configurado: {event.model}")
 
     def _handle_model_progress(self, event: ModelProgressEvent) -> None:
