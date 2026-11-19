@@ -594,3 +594,77 @@ Traceback (most recent call last):
     raise GeminiFatalError(
 gemini_agent.GeminiFatalError: Falló la única solicitud a gemini-3.8-flash (ServerError). BabyJarvis se detendrá sin reintentar ni cambiar de modelo.
 
+2026-11-19 18:11:12 INFO === Inicio de sesión del asistente ===
+2026-11-19 18:11:12 INFO Archivo de registro: C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\agent_debug.log
+2026-11-19 18:11:12 INFO GUI: Archivo de registro persistente: C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\agent_debug.log
+2026-11-19 18:11:12 WARNING Se ignora GEMINI_MODEL=gemini-3.5-flash-lite; BabyJarvis usa exclusivamente gemini-3.5-flash.
+2026-11-19 18:11:18 INFO GUI: Tarea b856f5c3 agregada a la cola.
+2026-11-19 18:11:18 INFO [tarea b856f5c3] ENTRADA DEL USUARIO:
+abre paint
+2026-11-19 18:11:18 INFO [tarea b856f5c3] INICIO DE PROCESAMIENTO: modelo principal=gemini-3.5-flash
+2026-11-19 18:11:18 INFO Inicio de tarea; se omite el texto de la instruccion del registro.
+2026-11-19 18:11:18 INFO [tarea b856f5c3] Capturando pantalla y consultando a Gemini...
+2026-11-19 18:11:18 INFO GUI: Instrucción agregada a la cola.
+2026-11-19 18:11:18 INFO GUI: ENTRADA DEL USUARIO:
+abre paint
+2026-11-19 18:11:18 INFO GUI: INICIO DE PROCESAMIENTO: modelo principal=gemini-3.5-flash
+2026-11-19 18:11:18 INFO GUI: Capturando pantalla y consultando a Gemini...
+2026-11-19 18:11:18 INFO Captura: imagen=1366x768 escritorio=1366x768 origen=(0,0) DPI=per-monitor-v2/96
+2026-11-19 18:11:18 INFO [tarea b856f5c3] Usando exclusivamente Gemini gemini-3.5-flash; sin fallback ni reintentos.
+2026-11-19 18:11:18 INFO Solicitud única a Gemini iniciada: modelo=gemini-3.5-flash
+2026-11-19 18:11:18 INFO GUI: Usando exclusivamente Gemini gemini-3.5-flash; sin fallback ni reintentos.
+2026-11-19 18:11:35 INFO Solicitud única completada: modelo=gemini-3.5-flash duracion=17.03s
+2026-11-19 18:11:35 INFO Finalización de respuesta Gemini: MAX_TOKENS
+2026-11-19 18:11:35 ERROR [tarea b856f5c3] Fallo fatal; se detiene el servicio completo:
+GeminiFatalError: Gemini devolvió una respuesta inválida o coordenadas fuera de la captura (1366x768). Se descarta la respuesta y se detiene todo: Gemini agotó el límite de tokens antes de completar el JSON. La respuesta se descarta íntegramente y no se ejecutan acciones.
+TRAZA COMPLETA:
+Traceback (most recent call last):
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 417, in ask_gemini
+    return suggest_cursor_action(
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\screen_vision.py", line 350, in suggest_cursor_action
+    output = create_interaction(
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 404, in generate
+    raise RuntimeError(
+RuntimeError: Gemini agotó el límite de tokens antes de completar el JSON. La respuesta se descarta íntegramente y no se ejecutan acciones.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\agent_service.py", line 545, in _worker_loop
+    succeeded = self._task_runner(client, task.instruction, control=control)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 813, in run_task
+    decision = ask_gemini(client, task, frame, history, context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 430, in ask_gemini
+    raise GeminiFatalError(
+gemini_agent.GeminiFatalError: Gemini devolvió una respuesta inválida o coordenadas fuera de la captura (1366x768). Se descarta la respuesta y se detiene todo: Gemini agotó el límite de tokens antes de completar el JSON. La respuesta se descarta íntegramente y no se ejecutan acciones.
+
+2026-11-19 18:11:35 INFO GUI: ERROR: GeminiFatalError: Gemini devolvió una respuesta inválida o coordenadas fuera de la captura (1366x768). Se descarta la respuesta y se detiene todo: Gemini agotó el límite de tokens antes de completar el JSON. La respuesta se descarta íntegramente y no se ejecutan acciones.
+TRAZA COMPLETA:
+Traceback (most recent call last):
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 417, in ask_gemini
+    return suggest_cursor_action(
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\screen_vision.py", line 350, in suggest_cursor_action
+    output = create_interaction(
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 404, in generate
+    raise RuntimeError(
+RuntimeError: Gemini agotó el límite de tokens antes de completar el JSON. La respuesta se descarta íntegramente y no se ejecutan acciones.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\agent_service.py", line 545, in _worker_loop
+    succeeded = self._task_runner(client, task.instruction, control=control)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 813, in run_task
+    decision = ask_gemini(client, task, frame, history, context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 430, in ask_gemini
+    raise GeminiFatalError(
+gemini_agent.GeminiFatalError: Gemini devolvió una respuesta inválida o coordenadas fuera de la captura (1366x768). Se descarta la respuesta y se detiene todo: Gemini agotó el límite de tokens antes de completar el JSON. La respuesta se descarta íntegramente y no se ejecutan acciones.
+
