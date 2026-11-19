@@ -218,9 +218,8 @@ class AgentService:
         return task.task_id
 
     def discover_models(self) -> None:
-        raise RuntimeError(
-            f"El modelo está fijado en {FIXED_GEMINI_MODEL}; la búsqueda de modelos está deshabilitada."
-        )
+        """Queue a read-only discovery of models exposed by the configured Gemini API key."""
+        self._queue_model_job("discover")
 
     def test_model_compatibility(self) -> None:
         raise RuntimeError(
