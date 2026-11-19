@@ -803,9 +803,10 @@ def run_task(
             raise GeminiFatalError("Gemini devolvio una decision continue sin acciones; se detiene todo.")
         _validate_strategy_actions(list(actions), context)
         if len(actions) > MAX_ACTIONS - actions_done:
-            LOGGER.warning("Lote completo rechazado: supera el limite global de acciones.")
-            _task_activity(context, "El lote supera el límite de acciones restante y se descartó.")
-            return False
+            LOGGER.error("Lote rechazado: el modelo superó el límite global de acciones.")
+            raise GeminiFatalError(
+                "Gemini superó el límite global de acciones; se detiene todo sin ejecutar el lote."
+            )
 
         repeated = _repeated_click_point(actions, last_click_point, consecutive_clicks_at_point)
         if repeated is not None:
