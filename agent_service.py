@@ -534,7 +534,7 @@ class AgentService:
             try:
                 self._emit_activity(
                     task.task_id,
-                    "ENTRADA DEL USUARIO:\\n" + _redact_sensitive(task.instruction),
+                    "ENTRADA DEL USUARIO:\n" + _redact_sensitive(task.instruction),
                 )
                 self._emit_activity(
                     task.task_id,
@@ -559,10 +559,10 @@ class AgentService:
                     traceback.format_exception(type(exc), exc, exc.__traceback__)
                 )
                 message = _redact_sensitive(
-                    f"{type(exc).__name__}: {exc}\\nTRAZA COMPLETA:\\n{trace}"
+                    f"{type(exc).__name__}: {exc}\nTRAZA COMPLETA:\n{trace}"
                 )
                 logging.getLogger("gemini_agent").error(
-                    "[tarea %s] Excepción no controlada:\\n%s",
+                    "[tarea %s] Excepción no controlada:\n%s",
                     task.task_id[:8],
                     message,
                 )
