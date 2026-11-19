@@ -173,7 +173,7 @@ def test_fatal_task_error_stops_service_and_rejects_new_tasks() -> None:
         service.submit_task("no debe ejecutarse")
 
 
-def test_out_of_bounds_coordinate_error_includes_capture_dimensions() -> None:
+def test_out_of_range_normalized_coordinate_is_rejected() -> None:
     frame = ScreenFrame(
         png_bytes=b"",
         width=1366,
@@ -181,13 +181,42 @@ def test_out_of_bounds_coordinate_error_includes_capture_dimensions() -> None:
         geometry=ScreenGeometry(0, 0, 1366, 768),
         captured_at=time.time(),
     )
-    with pytest.raises(ValueError, match="1366x768"):
+    with pytest.raises(ValueError, match="0..1000"):
         _validated_point(
-            {"x": 68, "y": 974},
+            {"x": 68, "y": 1001},
             {"x", "y"},
             {"x", "y"},
             frame,
         )
+
+
+def test_normalized_coordinates_are_converted_to_capture_pixels() -> None:
+    frame = ScreenFrame(
+        png_bytes=b"",
+        width=1366,
+        height=768,
+        geometry=ScreenGeometry(0, 0, 1366, 768),
+        captured_at=time.time(),
+    )
+    assert _validated_point({"x": 55, "y": 972}, {"x", "y"}, {"x", "y"}, frame) == (75, 745)
+    assert _validated_point({"x": 1000, "y": 1000}, {"x", "y"}, {"x", "y"}, frame) == (1365, 767)
+    assert _validated_point({"x": 0, "y": 0}, {"x", "y"}, {"x", "y"}, frame) == (0, 0)
+
+
+def test_drag_normalized_coordinates_are_converted_independently() -> None:
+    frame = ScreenFrame(
+        png_bytes=b"",
+        width=1366,
+        height=768,
+        geometry=ScreenGeometry(0, 0, 1366, 768),
+        captured_at=time.time(),
+    )
+    assert _validated_point(
+        {"start_x": 55, "start_y": 972},
+        {"start_x", "start_y"},
+        {"start_x", "start_y", "end_x", "end_y"},
+        frame,
+    ) == (75, 745)
 
 
 
@@ -206,8 +235,8 @@ def test_visual_prompt_is_loaded_from_markdown_and_uses_current_capture_bounds()
         "ETAPA DE PRUEBA",
     )
     assert "1366 × 768" in prompt
-    assert "0 a 1365" in prompt
-    assert "0 a 767" in prompt
+    assert "normalizado de 0 a 1000 por eje" in prompt
+    assert "NO devuelvas píxeles" in prompt
     assert '"abre paint"' in prompt
     assert "ETAPA DE PRUEBA" in prompt
     assert "{{SCREEN_WIDTH}}" not in prompt
