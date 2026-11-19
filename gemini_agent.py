@@ -753,7 +753,13 @@ def _execute_action(action: CursorAction, frame: ScreenFrame, context: TaskConte
 
 
 def _verification_models() -> tuple[str, ...]:
-    """Choose an independent verifier, preferring models proven multimodally."""
+    """Return only independently tested models suitable for final verification."""
+    if not MODEL_MANAGER.results_are_fresh():
+        raise RuntimeError(
+            "Antes de ejecutar tareas, realiza el diagnóstico de compatibilidad "
+            "de Gemini. Jarvis necesita al menos un modelo independiente que "
+            "haya superado las pruebas de texto e imagen."
+        )
     compatible = tuple(
         dict.fromkeys(
             result.model
@@ -765,19 +771,13 @@ def _verification_models() -> tuple[str, ...]:
         return (VERIFICATION_MODEL,) + tuple(
             model for model in compatible if model != VERIFICATION_MODEL
         )
-    if MODEL_MANAGER.results_are_fresh():
-        if compatible:
-            return compatible
-        raise RuntimeError(
-            "No hay un modelo verificador independiente que haya superado "
-            "las pruebas de texto e imagen. Ejecuta el diagnóstico de modelos "
-            "Gemini y selecciona un modelo principal distinto."
-        )
-    if VERIFICATION_MODEL == MODEL:
-        raise RuntimeError(
-            "El modelo verificador debe ser distinto del modelo principal."
-        )
-    return (VERIFICATION_MODEL,)
+    if compatible:
+        return compatible
+    raise RuntimeError(
+        "No hay un modelo verificador independiente que haya superado "
+        "las pruebas de texto e imagen. Selecciona un modelo principal distinto "
+        "de los modelos compatibles."
+    )
 
 
 def _verify_task(client: genai.Client, task: str, context: TaskContext) -> tuple[bool, str]:
@@ -830,6 +830,7 @@ def run_task(
 ) -> bool:
     """Ejecuta decisiones cortas, validadas y autorizadas sobre capturas reales."""
     task_control = control or TaskControl()
+    _verification_models()  # Fail before any desktop action if verification is unavailable.
     context = TaskContext(
         deadline=time.monotonic() + MAX_TASK_DURATION_SECONDS,
         geometry=get_screen_geometry(),
