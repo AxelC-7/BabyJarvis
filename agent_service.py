@@ -21,6 +21,7 @@ from gemini_agent import (
     TaskControl,
     MODEL_MANAGER,
     _authorization_summary,
+    _redacted_actions,
     _redact_sensitive,
     create_client,
     run_task,
@@ -363,10 +364,28 @@ class AgentService:
             except queue.Empty:
                 return
 
+    def _archive_trace_event(self, task_id: str, event: str, details: dict[str, object]) -> None:
+        """Append a privacy-conscious, per-task timeline for post-run debugging."""
+        try:
+            task_dir = CAPTURE_ARCHIVE_DIR / task_id
+            task_dir.mkdir(parents=True, exist_ok=True)
+            record = {
+                "timestamp": datetime.now().astimezone().isoformat(),
+                "task_id": task_id,
+                "event": event,
+                "details": details,
+            }
+            with (task_dir / "events.jsonl").open("a", encoding="utf-8") as stream:
+                stream.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
+        except OSError as exc:
+            LOGGER.warning("No se pudo archivar el evento de tarea %s: %s", task_id[:8], exc)
+
     def _emit_activity(self, task_id: str, message: str) -> None:
+        self._archive_trace_event(task_id, "activity", {"message": _redact_sensitive(message)})
         self.events.put(ActivityEvent(message, task_id))
 
     def _set_status(self, task_id: str, value: str) -> None:
+        self._archive_trace_event(task_id, "status", {"state": value})
         state = AgentState(value)
         if state != AgentState.PAUSED:
             with self._lock:
@@ -421,6 +440,13 @@ class AgentService:
                 },
             }
             metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+            self._archive_trace_event(task.task_id, "screenshot", {
+                "image": image_path.name,
+                "metadata": metadata_path.name,
+                "width": frame.width,
+                "height": frame.height,
+                "desktop_origin": [frame.geometry.left, frame.geometry.top],
+            })
             LOGGER.info("Captura archivada: %s (%sx%s)", image_path, frame.width, frame.height)
         except OSError as exc:
             LOGGER.warning("No se pudo archivar la captura: %s", exc)
@@ -438,6 +464,12 @@ class AgentService:
         self.events.put(StatusEvent(AgentState.PROPOSED, task.task_id))
         summary = _authorization_summary(list(actions), frame).split("\n", 1)[-1]
         title = "Modo autónomo: lote validado para ejecución automática:\n"
+        self._archive_trace_event(task.task_id, "action_batch_proposed", {
+            "batch_id": batch_id,
+            "autonomous": True,
+            "requires_authorization_before_override": requires_authorization,
+            "actions": _redacted_actions(list(actions)),
+        })
         self.events.put(ActionProposalEvent(
             task_id=task.task_id,
             batch_id=batch_id,
@@ -499,15 +531,19 @@ class AgentService:
                 if control.cancelled.is_set():
                     self.events.put(StatusEvent(AgentState.STOPPED, task.task_id))
                 elif succeeded:
+                    self._archive_trace_event(task.task_id, "task_finished", {"success": True})
                     self.events.put(StatusEvent(AgentState.COMPLETED, task.task_id))
                 else:
+                    self._archive_trace_event(task.task_id, "task_finished", {"success": False})
                     self.events.put(StatusEvent(AgentState.ERROR, task.task_id))
                 self.events.put(TaskFinishedEvent(task.task_id, succeeded))
             except TaskCancelled:
+                self._archive_trace_event(task.task_id, "task_cancelled", {"reason": "cancelled_or_emergency_stop"})
                 self.events.put(StatusEvent(AgentState.STOPPED, task.task_id))
                 self.events.put(TaskFinishedEvent(task.task_id, False))
             except Exception as exc:
                 message = _redact_sensitive(str(exc)) or type(exc).__name__
+                self._archive_trace_event(task.task_id, "task_error", {"error": message, "exception_type": type(exc).__name__})
                 self.events.put(ErrorEvent(message, task.task_id))
                 self.events.put(StatusEvent(AgentState.ERROR, task.task_id))
                 self.events.put(TaskFinishedEvent(task.task_id, False))
