@@ -28,6 +28,7 @@ from gemini_agent import (
     create_client,
     run_task,
     set_primary_model,
+    get_primary_model,
 )
 from gemini_model_manager import ModelDiagnosticResult
 from screen_vision import CursorAction, ScreenFrame, capture_screen
@@ -245,10 +246,8 @@ class AgentService:
                 raise RuntimeError(
                     "No se puede cambiar el modelo mientras hay tareas o diagnósticos pendientes."
                 )
-        if model != FIXED_GEMINI_MODEL:
-            raise ValueError(f"BabyJarvis usa exclusivamente {FIXED_GEMINI_MODEL}; no se permite cambiarlo.")
-        set_primary_model(FIXED_GEMINI_MODEL)
-        self.events.put(PrimaryModelSelectedEvent(FIXED_GEMINI_MODEL))
+        set_primary_model(model)
+        self.events.put(PrimaryModelSelectedEvent(get_primary_model()))
 
     def model_report(self) -> dict[str, object] | None:
         report = self._model_manager.fresh_report()
@@ -257,12 +256,11 @@ class AgentService:
         report["discovered_models"] = self._model_manager.fresh_discovered_models()
         if not self._model_manager.results_are_fresh():
             report["results"] = []
-            report["selected_primary"] = None
         return report
 
     @property
     def selected_model(self) -> str:
-        return FIXED_GEMINI_MODEL
+        return get_primary_model()
 
     def _queue_model_job(self, operation: str, models: list[str] | None = None) -> None:
         with self._lock:
