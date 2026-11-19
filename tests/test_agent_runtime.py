@@ -14,6 +14,7 @@ from gemini_agent import (
     TaskContext,
     TaskControl,
     _generate_with_fallback,
+    _verification_models,
     ask_gemini,
     create_client,
     _needs_authorization,
@@ -515,6 +516,44 @@ class AgentRuntimeTests(unittest.TestCase):
                 run_task(object(), "safe test")
         execute.assert_not_called()
         verify.assert_not_called()
+
+
+class VerificationModelSelectionTests(unittest.TestCase):
+    def test_prefers_configured_verifier_when_it_passed_multimodal_probe(self) -> None:
+        compatible = [
+            SimpleNamespace(model="gemini-3.6-flash"),
+            SimpleNamespace(model="gemini-3.5-flash-lite"),
+        ]
+        with (
+            patch("gemini_agent.MODEL", "gemini-3.5-flash-lite"),
+            patch("gemini_agent.VERIFICATION_MODEL", "gemini-3.6-flash"),
+            patch("gemini_agent.MODEL_MANAGER.fresh_results", return_value=compatible),
+            patch("gemini_agent.MODEL_MANAGER.results_are_fresh", return_value=True),
+        ):
+            self.assertEqual(_verification_models(), ("gemini-3.6-flash",))
+
+    def test_uses_another_verified_model_when_configured_verifier_is_unavailable(self) -> None:
+        compatible = [
+            SimpleNamespace(model="gemini-3.5-flash-lite"),
+            SimpleNamespace(model="gemini-3.6-flash"),
+        ]
+        with (
+            patch("gemini_agent.MODEL", "gemini-3.5-flash-lite"),
+            patch("gemini_agent.VERIFICATION_MODEL", "gemini-2.5-flash"),
+            patch("gemini_agent.MODEL_MANAGER.fresh_results", return_value=compatible),
+            patch("gemini_agent.MODEL_MANAGER.results_are_fresh", return_value=True),
+        ):
+            self.assertEqual(_verification_models(), ("gemini-3.6-flash",))
+
+    def test_refuses_verification_without_an_independent_verified_model(self) -> None:
+        with (
+            patch("gemini_agent.MODEL", "gemini-3.5-flash-lite"),
+            patch("gemini_agent.VERIFICATION_MODEL", "gemini-2.5-flash"),
+            patch("gemini_agent.MODEL_MANAGER.fresh_results", return_value=[]),
+            patch("gemini_agent.MODEL_MANAGER.results_are_fresh", return_value=True),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "No hay un modelo verificador"):
+                _verification_models()
 
 
 if __name__ == "__main__":
