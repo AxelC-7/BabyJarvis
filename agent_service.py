@@ -7,6 +7,7 @@ import logging
 import queue
 import threading
 import time
+import traceback
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -381,8 +382,12 @@ class AgentService:
             LOGGER.warning("No se pudo archivar el evento de tarea %s: %s", task_id[:8], exc)
 
     def _emit_activity(self, task_id: str, message: str) -> None:
-        self._archive_trace_event(task_id, "activity", {"message": _redact_sensitive(message)})
-        self.events.put(ActivityEvent(message, task_id))
+        safe_message = _redact_sensitive(message)
+        self._archive_trace_event(task_id, "activity", {"message": safe_message})
+        logging.getLogger("gemini_agent").info(
+            "[tarea %s] %s", task_id[:8], safe_message
+        )
+        self.events.put(ActivityEvent(safe_message, task_id))
 
     def _set_status(self, task_id: str, value: str) -> None:
         self._archive_trace_event(task_id, "status", {"state": value})
@@ -527,6 +532,14 @@ class AgentService:
             with self._lock:
                 self._worker_state = AgentState.THINKING
             try:
+                self._emit_activity(
+                    task.task_id,
+                    "ENTRADA DEL USUARIO:\\n" + _redact_sensitive(task.instruction),
+                )
+                self._emit_activity(
+                    task.task_id,
+                    f"INICIO DE PROCESAMIENTO: modelo principal={self.selected_model}",
+                )
                 succeeded = self._task_runner(client, task.instruction, control=control)
                 if control.cancelled.is_set():
                     self.events.put(StatusEvent(AgentState.STOPPED, task.task_id))
@@ -542,8 +555,22 @@ class AgentService:
                 self.events.put(StatusEvent(AgentState.STOPPED, task.task_id))
                 self.events.put(TaskFinishedEvent(task.task_id, False))
             except Exception as exc:
-                message = _redact_sensitive(str(exc)) or type(exc).__name__
-                self._archive_trace_event(task.task_id, "task_error", {"error": message, "exception_type": type(exc).__name__})
+                trace = "".join(
+                    traceback.format_exception(type(exc), exc, exc.__traceback__)
+                )
+                message = _redact_sensitive(
+                    f"{type(exc).__name__}: {exc}\\nTRAZA COMPLETA:\\n{trace}"
+                )
+                logging.getLogger("gemini_agent").error(
+                    "[tarea %s] Excepción no controlada:\\n%s",
+                    task.task_id[:8],
+                    message,
+                )
+                self._archive_trace_event(
+                    task.task_id,
+                    "task_error",
+                    {"error": message, "exception_type": type(exc).__name__},
+                )
                 self.events.put(ErrorEvent(message, task.task_id))
                 self.events.put(StatusEvent(AgentState.ERROR, task.task_id))
                 self.events.put(TaskFinishedEvent(task.task_id, False))
