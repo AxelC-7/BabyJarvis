@@ -416,7 +416,7 @@ def suggest_cursor_action(
         if not isinstance(message, str):
             raise ValueError("El mensaje de la acción debe ser texto.")
         if action in {"move", "click", "double_click"}:
-            allowed = {"type", "x", "y"}
+            allowed = {"type", "x", "y", "coordinate_system"}
             required = {"type", "x", "y"}
             if action == "move":
                 allowed.add("duration")
@@ -446,13 +446,13 @@ def suggest_cursor_action(
         elif action == "drag":
             required = {"type", "start_x", "start_y", "end_x", "end_y"}
             if not required <= raw_action.keys() or raw_action.keys() - (
-                required | {"duration"}
+                required | {"duration", "coordinate_system"}
             ):
                 raise ValueError("Parámetros inválidos para drag.")
             start_x, start_y = _validated_point(
                 raw_action,
                 {"start_x", "start_y"},
-                required | {"duration"},
+                required | {"duration", "coordinate_system"},
                 frame,
             )
             end_x, end_y = _validated_point(
@@ -507,12 +507,12 @@ def suggest_cursor_action(
             else:
                 raise ValueError("press requiere una tecla o una combinación de 2 a 4.")
         elif action == "scroll":
-            if set(raw_action) != {"type", "x", "y", "delta"}:
+            if set(raw_action) != {"type", "x", "y", "delta", "coordinate_system"}:
                 raise ValueError("Parámetros inválidos para scroll.")
             x, y = _validated_point(
                 raw_action,
                 {"x", "y"},
-                {"type", "x", "y", "delta"},
+                {"type", "x", "y", "delta", "coordinate_system"},
                 frame,
             )
             delta = raw_action.get("delta")
@@ -547,6 +547,8 @@ def _validated_point(
 ) -> tuple[int, int]:
     if not required <= action.keys() or action.keys() - allowed:
         raise ValueError("Parámetros de coordenadas incompletos o desconocidos.")
+    if action.get("coordinate_system") != "normalized_1000":
+        raise ValueError("La acción espacial debe declarar coordinate_system=normalized_1000.")
     x_key = next(key for key in required if key.endswith("_x") or key == "x")
     y_key = next(key for key in required if key.endswith("_y") or key == "y")
     normalized_x = action[x_key]
