@@ -560,5 +560,48 @@ class AgentRuntimeTests(unittest.TestCase):
         verify.assert_not_called()
 
 
+    def test_invalid_coordinates_are_discarded_and_task_reanalyzes(self) -> None:
+        click = CursorAction("click", x=12, y=34)
+        decisions = [
+            ValueError("Gemini propuso coordenadas fuera de la captura."),
+            AgentDecision("continue", actions=(click,)),
+            AgentDecision("success", message="done"),
+        ]
+        with (
+            patch("gemini_agent.get_screen_geometry", return_value=self.geometry),
+            patch("gemini_agent.get_cursor_position", return_value=(100, 100)),
+            patch("gemini_agent.capture_screen", return_value=self.frame),
+            patch("gemini_agent.ask_gemini", side_effect=decisions) as ask,
+            patch("gemini_agent._execute_action", return_value="Clic") as execute,
+            patch("gemini_agent._sleep_for_task"),
+            patch("gemini_agent._verify_task", return_value=(True, "visible result")),
+            patch("gemini_agent.print"),
+        ):
+            result = run_task(object(), "open Paint")
+        self.assertTrue(result)
+        self.assertEqual(ask.call_count, 3)
+        execute.assert_called_once()
+        retry_history = ask.call_args_list[1].args[3]
+        self.assertTrue(any("coordenadas fuera de la captura" in item for item in retry_history))
+
+    def test_model_obstacle_status_retries_with_strategy_history(self) -> None:
+        decisions = [
+            AgentDecision("error", message="El menú Inicio no respondió."),
+            AgentDecision("success", message="done"),
+        ]
+        with (
+            patch("gemini_agent.get_screen_geometry", return_value=self.geometry),
+            patch("gemini_agent.get_cursor_position", return_value=(100, 100)),
+            patch("gemini_agent.capture_screen", return_value=self.frame),
+            patch("gemini_agent.ask_gemini", side_effect=decisions) as ask,
+            patch("gemini_agent._sleep_for_task"),
+            patch("gemini_agent._verify_task", return_value=(True, "Paint visible")),
+            patch("gemini_agent.print"),
+        ):
+            self.assertTrue(run_task(object(), "open Paint"))
+        history = ask.call_args_list[1].args[3]
+        self.assertTrue(any("Win+R" in item for item in history))
+
+
 if __name__ == "__main__":
     unittest.main()
