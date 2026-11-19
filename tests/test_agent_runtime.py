@@ -548,6 +548,20 @@ class VerificationModelSelectionTests(unittest.TestCase):
         ):
             self.assertEqual(_verification_models(), ("gemini-3.6-flash",))
 
+    def test_run_task_refuses_to_touch_desktop_without_verified_independent_model(self) -> None:
+        with (
+            patch(
+                "gemini_agent._verification_models",
+                side_effect=RuntimeError("No verified verifier"),
+            ),
+            patch("gemini_agent.capture_screen") as capture,
+            patch("gemini_agent.get_screen_geometry") as geometry,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "No verified verifier"):
+                run_task(object(), "open a harmless app")
+        capture.assert_not_called()
+        geometry.assert_not_called()
+
     def test_refuses_verification_without_an_independent_verified_model(self) -> None:
         with (
             patch("gemini_agent.MODEL", "gemini-3.5-flash-lite"),
