@@ -560,7 +560,13 @@ def ask_gemini(
             ),
             context,
         )
-        return (response.text or "").strip()
+        response_text = (response.text or "").strip()
+        _task_activity(
+            context,
+            "RESPUESTA COMPLETA DE GEMINI (salida recibida):\\n"
+            + _redact_sensitive(response_text),
+        )
+        return response_text
 
     return suggest_cursor_action(
         generate,
@@ -893,6 +899,12 @@ def run_task(
             )
             continue
         actions = decision.actions
+        _task_activity(
+            context,
+            f"DECISIÓN INTERPRETADA DE GEMINI: estado={decision.status}; "
+            f"mensaje={_redact_sensitive(decision.message or '(sin mensaje)')}; "
+            f"acciones={json.dumps(_redacted_actions(list(actions)), ensure_ascii=False)}",
+        )
         LOGGER.info(
             "Estado propuesto por Gemini: %s; acciones: %s",
             decision.status,
