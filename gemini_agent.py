@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import base64
-import ctypes
 import json
 import logging
 import math
@@ -54,13 +53,6 @@ MAX_ACTIONS = int(os.getenv("MAX_SCREEN_ACTIONS", "8"))
 MAX_TASK_DURATION_SECONDS = float(os.getenv("MAX_TASK_DURATION_SECONDS", "180"))
 AUTHORIZATION_TIMEOUT_SECONDS = 30.0
 MAX_DECISION_ROUNDS = 8
-SAFE_LAUNCH_TARGETS = frozenset({
-    "mspaint", "mspaint.exe",
-    "notepad", "notepad.exe",
-    "calc", "calc.exe",
-    "explorer", "explorer.exe",
-})
-
 LOGGER = logging.getLogger("gemini_agent")
 MODEL_MANAGER = GeminiModelManager()
 
@@ -623,9 +615,9 @@ def _validate_strategy_actions(actions: list[CursorAction], context: TaskContext
                 raise GeminiFatalError(
                     "Se rechazó un comando porque CMD/PowerShell no fue abierto mediante Win+R."
                 )
-            if command_match is None or command_match.group(1).casefold() not in SAFE_LAUNCH_TARGETS:
+            if command_match is None:
                 raise GeminiFatalError(
-                    "Solo se permiten comandos simples para lanzar Paint, Bloc de notas, Calculadora o Explorador."
+                    "Solo se permiten comandos simples de lanzamiento, sin argumentos ni comandos encadenados."
                 )
             if context.shell_command_pending or context.shell_command_attempted:
                 raise GeminiFatalError("Solo se permite un comando de consola y debe confirmarse con Enter.")
@@ -634,9 +626,9 @@ def _validate_strategy_actions(actions: list[CursorAction], context: TaskContext
                 "Con CMD/PowerShell abierto solo se permite un comando simple de lanzamiento."
             )
         elif context.win_r_attempted and not is_shell_launcher:
-            if lowered not in SAFE_LAUNCH_TARGETS:
+            if not re.fullmatch(r"[A-Za-z0-9_.+-]+", text):
                 raise GeminiFatalError(
-                    "Ejecutar solo permite Paint, Bloc de notas, Calculadora o Explorador."
+                    "Ejecutar solo admite el nombre simple de una aplicación, sin argumentos ni comandos encadenados."
                 )
 
 
@@ -765,66 +757,6 @@ Objetivo del usuario: {json.dumps(task, ensure_ascii=False)}"""
     return completed, evidence
 
 
-def _native_application_for_task(task: str) -> str | None:
-    """Resolve a narrow set of built-in Windows apps for the final native fallback."""
-    normalized = task.casefold()
-    for keywords, executable in (
-        (("paint", "mspaint"), "mspaint.exe"),
-        (("notepad", "bloc de notas"), "notepad.exe"),
-        (("calculadora", "calculator"), "calc.exe"),
-        (("explorador de archivos", "file explorer", "explorer"), "explorer.exe"),
-    ):
-        if any(keyword in normalized for keyword in keywords):
-            return executable
-    return None
-
-
-def _launch_native_application(task: str, context: TaskContext) -> str:
-    """Use ShellExecuteW (shell32.dll), not user32.dll, for a whitelisted final launch."""
-    _check_task(context)
-    executable = _native_application_for_task(task)
-    if executable is None:
-        raise GeminiFatalError(
-            "El objetivo no coincide con una aplicación Windows permitida para el último recurso nativo."
-        )
-    if os.name != "nt":
-        raise GeminiFatalError("El último recurso ShellExecuteW solo está disponible en Windows.")
-    shell32 = ctypes.WinDLL("shell32", use_last_error=True)
-    shell32.ShellExecuteW.argtypes = [
-        ctypes.c_void_p,
-        ctypes.c_wchar_p,
-        ctypes.c_wchar_p,
-        ctypes.c_wchar_p,
-        ctypes.c_wchar_p,
-        ctypes.c_int,
-    ]
-    shell32.ShellExecuteW.restype = ctypes.c_void_p
-    result = shell32.ShellExecuteW(None, "open", executable, None, None, 1)
-    if not result or int(result) <= 32:
-        raise GeminiFatalError(
-            f"ShellExecuteW no pudo abrir {executable}; resultado={result!r}, "
-            f"winerror={ctypes.get_last_error()}."
-        )
-    LOGGER.info("Último recurso nativo ejecutado: ShellExecuteW(%s).", executable)
-    _task_activity(context, f"Último recurso nativo: ShellExecuteW abrió {executable}.")
-    return executable
-
-
-def _native_fallback_and_verify(
-    client: genai.Client,
-    task: str,
-    context: TaskContext,
-) -> bool:
-    executable = _launch_native_application(task, context)
-    _sleep_for_task(1.5, context)
-    completed, evidence = _verify_task(client, task, context)
-    if not completed:
-        raise GeminiFatalError(
-            f"ShellExecuteW abrió {executable}, pero Gemini no pudo confirmar el objetivo; se detiene todo."
-        )
-    _task_activity(context, f"Resultado verificado tras el último recurso nativo: {evidence}")
-    return True
-
 
 def run_task(
     client: genai.Client,
@@ -894,7 +826,9 @@ def run_task(
             last_error_stage = current_error_stage
             LOGGER.warning("Gemini informo un obstaculo; se evaluara la siguiente etapa permitida: %s", _redact_sensitive(decision.message))
             if context.shell_opened and context.shell_command_attempted:
-                return _native_fallback_and_verify(client, task, context)
+                raise GeminiFatalError(
+                    "El lanzamiento solicitado no se pudo verificar; se detiene la tarea sin ejecutar otro método nativo."
+                )
             if not context.cursor_attempted:
                 raise GeminiFatalError("Gemini no pudo identificar un control visible para el primer intento con el cursor.")
             history.append(
@@ -912,8 +846,6 @@ def run_task(
                 LOGGER.info("Exito confirmado mediante verificacion visual independiente.")
                 _task_activity(context, f"Resultado verificado visualmente: {evidence}")
                 return True
-            if context.shell_command_attempted:
-                return _native_fallback_and_verify(client, task, context)
             history.append(
                 "Gemini informo success, pero la verificacion visual independiente "
                 "no confirmo el objetivo. El método anterior no consiguió el objetivo. "
