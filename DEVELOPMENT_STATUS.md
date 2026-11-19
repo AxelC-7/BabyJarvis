@@ -5,7 +5,7 @@
 Esta sección refleja la implementación más reciente y prevalece sobre las notas históricas de modelos y reintentos que aparecen más abajo.
 
 - Modelo único y fijo: `gemini-3.8-flash`. Se usa para analizar, decidir y verificar; no existe un segundo modelo.
-- Una solicitud por decisión. No hay reintentos automáticos, fallback, cambio de modelo ni barrido de modelos desde la GUI.
+- Una solicitud por decisión. No hay reintentos automáticos ni fallback a otros modelos; el selector y el barrido de modelos están deshabilitados.
 - Si falla la API, el modelo, el formato de respuesta o la validación de coordenadas, el servicio se detiene, descarta la cola y requiere reiniciar la aplicación.
 - El orden de estrategia se valida en código: clic con cursor y nueva captura antes de permitir Win+R; CMD/PowerShell solo después de intentar Win+R.
 - Las coordenadas fuera de la captura se rechazan con sus dimensiones; nunca se ajustan automáticamente.
@@ -16,10 +16,9 @@ Esta sección refleja la implementación más reciente y prevalece sobre las not
 
 En curso. El ciclo existente del agente ahora puede ejecutarse desde el servicio
 de trabajo serial y dispone de una interfaz Tkinter persistente, independiente de
-la terminal. La captura se limita al monitor principal y la GUI incorpora
-descubrimiento y diagnóstico explícito de modelos Gemini. Las pruebas offline
-pasan; aún faltan la prueba visual en Windows y un diagnóstico real de la lista
-de modelos de esta API Key.
+la terminal. La captura se limita al monitor principal y la GUI mantiene una pestaña informativa con el modelo único; el selector y el
+barrido de modelos están deshabilitados. La suite nueva de estrategia y fallos
+fatales está pendiente de ejecución en CI y en el notebook.
 
 ## Arquitectura actual
 

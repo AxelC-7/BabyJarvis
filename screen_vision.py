@@ -300,7 +300,7 @@ def suggest_cursor_action(
         raise ValueError("El nombre del modelo no puede estar vacío.")
 
     if not cursor_attempted:
-        strategy_instructions = "ETAPA 1: cursor obligatorio. El primer lote debe contener un clic o doble clic sobre un control visible. No uses Win+R ni consola."
+        strategy_instructions = "ETAPA 1: cursor obligatorio. El primer lote debe incluir un clic o doble clic sobre un control visible; puedes mover el cursor antes de hacer clic. No uses Win+R ni consola."
     elif not win_r_attempted:
         strategy_instructions = "ETAPA 2: ya se ejecutó un clic con el cursor y se observó una captura nueva. Si el objetivo no se cumplió, usa Win+R para lanzar solo mspaint, notepad, calc o explorer. No abras CMD/PowerShell todavía."
     elif not shell_opened:
@@ -318,7 +318,9 @@ Devuelve exactamente uno de estos formatos JSON:
 - Para señalar un error u obstáculo: {{"status":"error","message":"..."}}, sin campo actions.
 success solo es una hipótesis que el programa verificará con otra captura.
 error significa obstáculo de la etapa actual; solo se permite avanzar a la siguiente etapa
-que indique el estado de estrategia. Si se agotan las etapas, el programa se detiene.
+que indique el estado de estrategia. Si CMD/PowerShell falla, el programa puede intentar
+ShellExecuteW solo para aplicaciones permitidas; si falla o el objetivo no está permitido,
+se detiene todo.
 El programa comprueba success con una captura nueva usando el mismo modelo fijo.
 Las coordenadas son píxeles de la imagen {frame.width}x{frame.height}, origen arriba a la
 izquierda, X en 0..{frame.width - 1}, Y en 0..{frame.height - 1}. Nunca inventes posiciones.
