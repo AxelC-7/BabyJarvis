@@ -587,18 +587,18 @@ def _validate_strategy_actions(actions: list[CursorAction], context: TaskContext
         text = action.text.strip()
         lowered = text.casefold()
         is_shell_launcher = lowered in {"cmd", "powershell", "pwsh"}
-        is_shell_command = bool(re.match(r"(?i)^(?:start|start-process)\\b", text))
+        is_shell_command = bool(re.match(r"(?i)^(?:start|start-process)\b", text))
         if is_shell_launcher and not context.win_r_attempted:
             raise GeminiFatalError("CMD/PowerShell fue propuesto antes de intentar Win+R.")
         if is_shell_command:
             if not context.shell_opened:
                 raise GeminiFatalError("Se rechazó un comando porque CMD/PowerShell no fue abierto mediante Win+R.")
-            if not re.fullmatch(r"(?i)(?:start|start-process)\\s+[A-Za-z0-9_.-]+", text):
+            if not re.fullmatch(r"(?i)(?:start|start-process)\s+[A-Za-z0-9_.-]+", text):
                 raise GeminiFatalError("Solo se permiten comandos simples start <aplicacion> o Start-Process <aplicacion>.")
         elif context.shell_opened:
             raise GeminiFatalError("Con CMD/PowerShell abierto solo se permite un comando simple de lanzamiento.")
         elif context.win_r_attempted and not is_shell_launcher:
-            if not re.fullmatch(r"[A-Za-z0-9_.:/\\\\-]+", text):
+            if not re.fullmatch(r"[A-Za-z0-9_.:/\\-]+", text):
                 raise GeminiFatalError("En Ejecutar solo se permite un nombre o ruta simple de aplicación.")
 
 
