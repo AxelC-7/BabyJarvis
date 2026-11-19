@@ -198,7 +198,7 @@ class GeminiModelManager:
             if cancel_event.is_set():
                 break
             name = _model_name(model)
-            if name and _supports_generate_content(model) and name not in seen:
+            if name and name not in seen:
                 seen.add(name)
                 candidates.append(name)
                 if progress is not None:
@@ -460,17 +460,19 @@ class GeminiModelManager:
         if report is None:
             return default
         selected = report.get("selected_primary")
-        compatible = {result.model for result in self.fresh_results()}
-        return selected if isinstance(selected, str) and selected in compatible else default
+        return selected.strip() if isinstance(selected, str) and selected.strip() else default
 
     def select_primary(self, model: str) -> None:
+        normalized = model.strip()
+        if not normalized:
+            raise ValueError("El identificador del modelo no puede estar vacío.")
         report = self.fresh_report()
-        if report is None or not self.results_are_fresh():
-            raise RuntimeError("Los resultados de compatibilidad están vencidos o ausentes.")
-        compatible = {result.model for result in self.fresh_results()}
-        if model not in compatible:
-            raise ValueError("El modelo principal debe haber superado texto e imagen.")
-        report["selected_primary"] = model
+        if report is None:
+            raise RuntimeError("Primero debes buscar los modelos disponibles.")
+        discovered = report.get("discovered_models", [])
+        if not isinstance(discovered, list) or normalized not in discovered:
+            raise ValueError("Selecciona un modelo devuelto por la búsqueda de Gemini.")
+        report["selected_primary"] = normalized
         self._write_report(report)
 
     def _save_discovery(self, models: list[str]) -> None:
