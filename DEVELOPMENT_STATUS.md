@@ -7,7 +7,7 @@ Esta sección refleja la implementación más reciente y prevalece sobre las not
 - Modelo único y fijo: `gemini-3.8-flash`. Se usa para analizar, decidir y verificar; no existe un segundo modelo.
 - Una solicitud por decisión. No hay reintentos automáticos ni fallback a otros modelos; el selector y el barrido de modelos están deshabilitados.
 - Si falla la API, el modelo, el formato de respuesta o la validación de coordenadas, el servicio se detiene, descarta la cola y requiere reiniciar la aplicación.
-- El orden de estrategia se valida en código: clic con cursor y nueva captura antes de permitir Win+R; CMD/PowerShell solo después de intentar Win+R.
+- La estrategia actual conserva el orden de Windows: clic con cursor y nueva captura, luego Win+R y, si hace falta, CMD/PowerShell. Los nombres de aplicaciones no están fijados en código; el agente utiliza el nombre solicitado. Esta secuencia deberá abstraerse por plataforma al implementar Linux.
 - Las coordenadas fuera de la captura se rechazan con sus dimensiones; nunca se ajustan automáticamente.
 - Se eliminó la lista fija de aplicaciones permitidas y el fallback nativo `ShellExecuteW` ligado a aplicaciones de Windows. El agente puede proponer el nombre simple de la aplicación solicitada; se mantienen restricciones contra argumentos, tuberías, scripts y comandos encadenados. La captura y el control de escritorio aún son específicos de Windows; la adaptación multiplataforma sigue pendiente.
 - Se añadieron pruebas unitarias para la jerarquía, la política de modelo único y la parada fatal. La ejecución de CI de este commit queda pendiente de confirmación.
