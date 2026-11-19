@@ -49,11 +49,11 @@ Se abrirá la ventana de Jarvis. La primera inicialización valida la configurac
 
 ## Modelo Gemini fijo
 
-BabyJarvis utiliza exclusivamente `gemini-3.8-flash` para analizar la pantalla, proponer acciones y verificar resultados. El modelo está fijado en código: no hay selector, fallback a otros modelos ni reintentos automáticos.
+BabyJarvis utiliza exclusivamente `gemini-3.5-flash` para analizar la pantalla, proponer acciones y verificar resultados. El modelo está fijado en código: no hay selector, fallback a otros modelos ni reintentos automáticos. Las respuestas visuales solicitan lotes mínimos y disponen de un límite de 1024 tokens; si Gemini corta el JSON, la respuesta completa se descarta sin ejecutar acciones.
 
 Si la API, el modelo o una respuesta estructurada falla, BabyJarvis detiene el servicio completo, descarta las tareas pendientes y requiere reiniciar la aplicación. No ejecuta acciones nuevas después de ese fallo.
 
-La verificación visual también utiliza `gemini-3.8-flash`; no se necesita un segundo modelo ni una segunda API Key.
+La verificación visual también utiliza `gemini-3.5-flash`; no se necesita un segundo modelo ni una segunda API Key.
 
 La estrategia actual prioriza el cursor y, en Windows, contempla Win+R y CMD/PowerShell como métodos alternativos. Los nombres de aplicaciones no están limitados a una lista fija: el agente utiliza el nombre solicitado por el usuario. No existe un fallback nativo ligado a aplicaciones concretas. La captura y el control de escritorio actuales siguen siendo específicos de Windows; la abstracción multiplataforma para Linux queda pendiente.
 
