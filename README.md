@@ -77,13 +77,8 @@ La parada de emergencia cancela la tarea y descarta las instrucciones pendientes
 ## Pruebas automatizadas
 
 ```powershell
-python -m compileall -q .
 python -m pytest tests -q
-```
 
-La compilación manual anterior incluye el directorio histórico `recovery/`; para la comprobación equivalente a CI, usa:
-
-```powershell
 Get-ChildItem -Recurse -Filter *.py |
   Where-Object {
     $_.FullName -notmatch '\\(recovery|\.venv|venv|__pycache__)\\'
