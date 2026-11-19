@@ -1,0 +1,27 @@
+INFORME DE DIAGNÓSTICO DE WINDOWS
+Generado: 2026-11-17T18:13:49-03:00
+Estado general: Sin problemas confirmados
+
+RECURSOS
+CPU: 16.4% (4 núcleos físicos / 8 hilos)
+RAM: 76.8% utilizada
+Disco C:\: 34.8% utilizado, 651924893696 bytes libres
+Disco E:\: 13.6% utilizado, 863735664640 bytes libres
+Temperaturas no disponibles: psutil no expone sensores térmicos en Windows.
+
+PROBLEMAS Y ADVERTENCIAS
+
+PROCESOS QUE MERECEN REVISIÓN
+
+ELEMENTOS DE INICIO QUE MERECEN REVISIÓN
+
+PRUEBAS DE RENDIMIENTO
+- {"mode": "cpu", "started_at": "2026-11-17T18:11:59-0300", "requested_duration_seconds": 10, "max_cpu_percent": 50, "completed": true, "cancelled": false, "warnings": [], "elapsed_seconds": 10.49, "work_units": 36253416408559, "cpu_work_units": 36253416408559}
+
+RECOMENDACIONES
+- No se encontraron umbrales de advertencia superados en esta captura; esto no certifica la ausencia de problemas.
+- Limitación: La falta de una firma o fabricante no confirma que un proceso sea malicioso.
+- Limitación: Los contadores de tráfico por proceso no están disponibles mediante las interfaces estándar utilizadas; se muestran conexiones remotas observadas.
+- Limitación: La temperatura, desgaste de batería, VRAM y sensores dependen del hardware y de sus controladores.
+- Limitación: La configuración específica de recuperación automática de servicios no se determina; la auditoría enumera servicios, tareas y entradas de inicio visibles.
+- Limitación: Los elementos señalados requieren revisión humana; esta herramienta no detiene ni modifica procesos, servicios, tareas ni el registro.

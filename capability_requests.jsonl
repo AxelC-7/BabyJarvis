@@ -1,0 +1,3 @@
+{"timestamp": "2026-11-03T15:53:05.667699+00:00", "request": "abre google", "reason": "Error code: 503 - {'error': {'message': 'gemini-3.8-flash is currently experiencing high demand, spikes in demand are usually temporary. Please try again later.', 'code': 'service_unavailable'}}"}
+{"timestamp": "2026-11-07T20:04:45.851069+00:00", "request": "usa la ventana que ya habias abierto", "reason": "No puedo interactuar con ventanas abiertas ni gestionarlas; únicamente puedo abrir nuevas aplicaciones o páginas web."}
+{"timestamp": "2026-11-07T21:24:55.877459+00:00", "request": "abre bloc de notas", "reason": "No encontré bloc de notas instalada ni una versión web oficial."}

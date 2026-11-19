@@ -1,0 +1,17 @@
+{
+  "task_id": "3eb8f8a2520444a6ad3c3056b8893761",
+  "sequence": 12,
+  "captured_at": 1795114931.601515,
+  "saved_at": "2026-11-19T16:02:11.602520-03:00",
+  "image": "20261119_160211_601515_00012_3eb8f8a2.png",
+  "width": 1366,
+  "height": 768,
+  "desktop": {
+    "left": 0,
+    "top": 0,
+    "width": 1366,
+    "height": 768,
+    "dpi_awareness": "per-monitor-v2",
+    "system_dpi": 96
+  }
+}

@@ -1,0 +1,5 @@
+{"timestamp": "2026-11-19T16:10:51.096832-03:00", "task_id": "2b57ff69ca414a93ae487f037c009dd5", "event": "status", "details": {"state": "thinking"}}
+{"timestamp": "2026-11-19T16:10:51.097709-03:00", "task_id": "2b57ff69ca414a93ae487f037c009dd5", "event": "activity", "details": {"message": "Capturando pantalla y consultando a Gemini..."}}
+{"timestamp": "2026-11-19T16:10:51.745427-03:00", "task_id": "2b57ff69ca414a93ae487f037c009dd5", "event": "screenshot", "details": {"image": "20261119_161051_737909_00001_2b57ff69.png", "metadata": "20261119_161051_737909_00001_2b57ff69.json", "width": 1366, "height": 768, "desktop_origin": [0, 0]}}
+{"timestamp": "2026-11-19T16:10:51.785011-03:00", "task_id": "2b57ff69ca414a93ae487f037c009dd5", "event": "activity", "details": {"message": "Usando el modelo Gemini gemini-3.5-flash-lite."}}
+{"timestamp": "2026-11-19T16:10:54.154184-03:00", "task_id": "2b57ff69ca414a93ae487f037c009dd5", "event": "task_error", "details": {"error": "Gemini propuso coordenadas fuera de la captura.", "exception_type": "ValueError"}}

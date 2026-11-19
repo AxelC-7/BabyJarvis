@@ -2,35 +2,3 @@
 .env
 .env.*
 !.env.example
-
-# Python
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.mypy_cache/
-
-# Entornos virtuales
-.venv/
-venv/
-ENV/
-
-# Logs y registros
-*.log
-*.log.*
-*.jsonl
-
-# IDE
-.vscode/
-.idea/
-
-# Sistema operativo
-Thumbs.db
-.DS_Store
-
-# Diagnosticos locales: no publicar informacion del equipo
-diagnostico-windows-*.txt
-diagnostico-windows-*.json
-diagnostics/
-
-# Capturas locales de depuración (imágenes y metadatos)
-debug_captures/

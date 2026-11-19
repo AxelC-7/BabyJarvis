@@ -1,0 +1,56 @@
+INFORME DE DIAGNÓSTICO DE WINDOWS
+Generado: 2026-11-17T18:31:38-03:00
+Estado general: Sin problemas confirmados
+
+RECURSOS
+CPU: 41.5% (4 núcleos físicos / 8 hilos, 1600.0 MHz)
+RAM: 85.3% utilizada; 7218806784 bytes usados, 1243394048 bytes disponibles de 8462200832 bytes
+Disco C:\: 34.8% utilizado, 651682848768 bytes libres
+Disco E:\: 13.6% utilizado, 863735664640 bytes libres
+Temperaturas no disponibles: No se encontró LibreHardwareMonitorLib.dll; inicie LibreHardwareMonitor o configure LIBRE_HARDWARE_MONITOR_PATH.
+GPU Intel(R) UHD Graphics 620 (Intel Corporation): utilización N/D%, temperatura N/D °C, VRAM usada N/D MiB, total N/D MiB; memoria de adaptador reportada 1024 MiB (sin distinguir dedicada/compartida).
+GPU spacedesk Graphics Adapter (datronicsoft): utilización N/D%, temperatura N/D °C, VRAM usada N/D MiB, total N/D MiB.
+Batería: carga 100%, capacidad de diseño N/D mWh, carga completa 31797 mWh, desgaste estimado N/D%, ciclos 0.
+
+TEMPERATURAS MÍNIMAS, MÁXIMAS Y ACTUALES
+- Sin muestras de temperatura disponibles; no se estimaron valores.
+
+PROBLEMAS Y ADVERTENCIAS
+
+PROCESOS QUE MERECEN REVISIÓN
+
+PROCESOS CON MAYOR CONSUMO DE RAM
+RAM del sistema: 85.3% utilizada. Suma de RSS observada: 95.53% de la RAM física (puede incluir páginas compartidas).
+- Code.exe (PID 14408): 954.9 MiB (11.83% de RAM), riesgo informativo; ruta: C:\Users\AXEL\AppData\Local\Programs\Microsoft VS Code\Code.exe; firma Valid, fabricante/firmante Microsoft Corporation; conexiones remotas observadas: ninguna.
+- MsMpEng.exe (PID 5968): 521.8 MiB (6.47% de RAM), riesgo informativo; ruta: C:\ProgramData\Microsoft\Windows Defender\Platform\4.18.26100.4-0\MsMpEng.exe; firma Valid, fabricante/firmante Microsoft Corporation; conexiones remotas observadas: ninguna.
+- chrome.exe (PID 9868): 351.5 MiB (4.36% de RAM), riesgo informativo; ruta: C:\Program Files\Google\Chrome\Application\chrome.exe; firma Valid, fabricante/firmante Google LLC; conexiones remotas observadas: ninguna.
+- copilot-runtime.exe (PID 16140): 339.7 MiB (4.21% de RAM), riesgo informativo; ruta: C:\Users\AXEL\AppData\Local\Programs\Microsoft VS Code\69047191fc\resources\app\node_modules.asar.unpacked\@github\copilot-sdk-win32-x64\prebuilds\win32-x64\copilot-runtime.exe; firma Valid, fabricante/firmante GitHub Inc.; conexiones remotas observadas: 140.82.113.22:443, 140.82.114.21:443.
+- MemCompression (PID 2980): 336.5 MiB (4.17% de RAM), riesgo informativo; ruta: no disponible; firma No verificada; conexiones remotas observadas: ninguna.
+- Code.exe (PID 14904): 256.7 MiB (3.18% de RAM), riesgo informativo; ruta: C:\Users\AXEL\AppData\Local\Programs\Microsoft VS Code\Code.exe; firma Valid, fabricante/firmante Microsoft Corporation; conexiones remotas observadas: 140.82.114.21:443, 20.52.64.204:443.
+- oracle.exe (PID 5572): 186.1 MiB (2.31% de RAM), riesgo informativo; ruta: E:\app\AXEL\product\12.1.0\dbhome_1\BIN\oracle.exe; firma NotSigned, fabricante/firmante Oracle Corporation; conexiones remotas observadas: ninguna.
+- oracle.exe (PID 5512): 185.2 MiB (2.29% de RAM), riesgo informativo; ruta: E:\app\AXEL\product\12.1.0\dbhome_1\BIN\oracle.exe; firma NotSigned, fabricante/firmante Oracle Corporation; conexiones remotas observadas: fe80::1a5f:9e89:5f04:d7cc:1521.
+- chrome.exe (PID 14936): 180.1 MiB (2.23% de RAM), riesgo informativo; ruta: C:\Program Files\Google\Chrome\Application\chrome.exe; firma Valid, fabricante/firmante Google LLC; conexiones remotas observadas: ninguna.
+- Code.exe (PID 14308): 155.6 MiB (1.93% de RAM), riesgo informativo; ruta: C:\Users\AXEL\AppData\Local\Programs\Microsoft VS Code\Code.exe; firma Valid, fabricante/firmante Microsoft Corporation; conexiones remotas observadas: ninguna.
+Tendencias de crecimiento sostenido:
+- Sin tendencia de crecimiento que supere los criterios mínimos; se necesitan muestras sucesivas.
+El porcentaje individual se calcula con RSS respecto de la RAM física. La suma de RSS puede contar páginas compartidas más de una vez; una tendencia de crecimiento es una señal para investigar, no prueba de una fuga.
+
+COMPARACIÓN CON EL INFORME ANTERIOR
+Anterior: 2026-11-17T18:13:49-03:00.
+- CPU: 16.4% → 41.5% (variación +25.10 puntos porcentuales).
+- RAM: 76.8% → 85.3% (variación +8.50 puntos porcentuales).
+La comparación usa capturas puntuales; diferencias de carga o momento del día no prueban una mejora o regresión sostenida.
+
+ELEMENTOS DE INICIO QUE MERECEN REVISIÓN
+
+PRUEBAS DE RENDIMIENTO
+
+RECOMENDACIONES
+- No se encontraron umbrales de advertencia superados en esta captura; esto no certifica la ausencia de problemas.
+- Revise la tabla de procesos ordenada por RAM y compare muestras sucesivas; el consumo alto aislado no demuestra una fuga.
+- Limitación: La falta de una firma o fabricante no confirma que un proceso sea malicioso.
+- Limitación: Los contadores de tráfico por proceso no están disponibles mediante las interfaces estándar utilizadas; se muestran conexiones remotas observadas.
+- Limitación: La temperatura, desgaste de batería, VRAM y sensores dependen del hardware y de sus controladores.
+- Limitación: La configuración específica de recuperación automática de servicios no se determina; la auditoría enumera servicios, tareas y entradas de inicio visibles.
+- Limitación: Los porcentajes de RAM por proceso se basan en RSS y no equivalen a memoria privada; páginas compartidas pueden aparecer en varios procesos.
+- Limitación: Los elementos señalados requieren revisión humana; esta herramienta no detiene ni modifica procesos, servicios, tareas ni el registro.
