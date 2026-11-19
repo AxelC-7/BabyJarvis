@@ -566,7 +566,7 @@ def _is_windows_run_shortcut(action: CursorAction) -> bool:
 
 
 def _validate_strategy_actions(actions: list[CursorAction], context: TaskContext) -> None:
-    """Enforce the cursor -> Win+R -> CMD/PowerShell -> native API order."""
+    """Enforce cursor-first behavior and simple, non-chained application launch commands."""
     if not context.cursor_attempted:
         click_index = next(
             (
@@ -851,7 +851,7 @@ def run_task(
                 "no confirmo el objetivo. El método anterior no consiguió el objetivo. "
                 "Reobserva la pantalla y cambia de estrategia: primero cursor si aún no "
                 "se probó; después Win+R; luego CMD/PowerShell con lanzamiento seguro; "
-                "por último API nativa de Windows. No repitas el mismo clic sin cambios."
+                "siempre según los controles visibles del sistema. No repitas el mismo clic sin cambios."
             )
             LOGGER.warning(
                 "El estado success de Gemini no fue confirmado; se reanalizara la pantalla."
