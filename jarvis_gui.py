@@ -126,12 +126,12 @@ class JarvisApp:
         self.models_tab.rowconfigure(3, weight=1)
         actions = ttk.Frame(self.models_tab)
         actions.grid(row=0, column=0, sticky="ew", padx=8, pady=8)
-        ttk.Button(
+        self.discover_models_button = ttk.Button(
             actions,
             text="Buscar modelos disponibles",
             command=self._discover_models,
-            state="disabled",
-        ).pack(side="left", padx=3)
+        )
+        self.discover_models_button.pack(side="left", padx=3)
         ttk.Button(
             actions,
             text="Probar compatibilidad",
@@ -144,7 +144,7 @@ class JarvisApp:
             command=self._cancel_model_tests,
             state="disabled",
         ).pack(side="left", padx=3)
-        self.model_progress_text = tk.StringVar(value="Modelo único fijado: gemini-3.8-flash. Sin selector, fallback ni reintentos.")
+        self.model_progress_text = tk.StringVar(value=f"Modelo único fijado: {self.service.selected_model}. La búsqueda solo consulta los modelos disponibles; no cambia el modelo activo.")
         ttk.Label(self.models_tab, textvariable=self.model_progress_text).grid(
             row=1, column=0, sticky="ew", padx=10
         )
@@ -185,12 +185,12 @@ class JarvisApp:
         ttk.Label(selection, text="Modelo principal:").grid(
             row=0, column=0, padx=4
         )
-        self.primary_model = tk.StringVar(value="gemini-3.8-flash")
+        self.primary_model = tk.StringVar(value=self.service.selected_model)
         self.primary_model_combo = ttk.Combobox(
             selection,
             textvariable=self.primary_model,
             state="disabled",
-            values=("gemini-3.8-flash",),
+            values=(self.service.selected_model,),
         )
         self.primary_model_combo.grid(row=0, column=1, sticky="ew", padx=4)
         ttk.Button(
@@ -242,10 +242,10 @@ class JarvisApp:
                 "", tk.END, values=(model, status, duration, reason)
             )
         self.primary_model_combo.configure(
-            values=("gemini-3.8-flash",),
+            values=(self.service.selected_model,),
             state="disabled",
         )
-        self.primary_model.set("gemini-3.8-flash")
+        self.primary_model.set(self.service.selected_model)
 
     def _discover_models(self) -> None:
         try:
