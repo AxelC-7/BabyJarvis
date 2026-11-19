@@ -728,6 +728,7 @@ def run_task(
     last_click_point: tuple[int, int] | None = None
     consecutive_clicks_at_point = 0
     point_reanalyzed: tuple[int, int] | None = None
+    last_error_stage: tuple[bool, bool, bool] | None = None
 
     while decision_rounds < MAX_DECISION_ROUNDS:
         _check_task(context)
@@ -757,6 +758,16 @@ def run_task(
             json.dumps(_redacted_actions(list(actions)), ensure_ascii=False),
         )
         if decision.status == "error":
+            current_error_stage = (
+                context.cursor_attempted,
+                context.win_r_attempted,
+                context.shell_opened,
+            )
+            if last_error_stage == current_error_stage:
+                raise GeminiFatalError(
+                    "Gemini repitió el mismo obstáculo sin ejecutar la siguiente estrategia; se detiene todo."
+                )
+            last_error_stage = current_error_stage
             LOGGER.warning("Gemini informo un obstaculo; se evaluara la siguiente etapa permitida: %s", _redact_sensitive(decision.message))
             if context.shell_opened:
                 raise GeminiFatalError("CMD/PowerShell no resolvió la tarea; no existe una acción nativa validada. Se detiene todo.")
@@ -768,6 +779,7 @@ def run_task(
             )
             _task_activity(context, "Obstáculo detectado. Se permite avanzar solo a la siguiente estrategia validada.")
             continue
+        last_error_stage = None
         if decision.status == "success":
             _task_status(context, "thinking")
             _task_activity(context, "Comprobando el resultado con una captura nueva...")

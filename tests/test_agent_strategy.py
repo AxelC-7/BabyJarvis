@@ -14,7 +14,7 @@ from gemini_agent import (
     _record_strategy_progress,
     _validate_strategy_actions,
 )
-from screen_vision import CursorAction
+from screen_vision import CursorAction, ScreenFrame, _validated_point
 
 
 def make_context() -> TaskContext:
@@ -160,3 +160,20 @@ def test_fatal_task_error_stops_service_and_rejects_new_tasks() -> None:
     assert not service.worker_alive
     with pytest.raises(RuntimeError, match="detenido"):
         service.submit_task("no debe ejecutarse")
+
+
+def test_out_of_bounds_coordinate_error_includes_capture_dimensions() -> None:
+    frame = ScreenFrame(
+        png_bytes=b"",
+        width=1366,
+        height=768,
+        geometry=ScreenGeometry(0, 0, 1366, 768),
+        captured_at=time.time(),
+    )
+    with pytest.raises(ValueError, match="1366x768"):
+        _validated_point(
+            {"x": 68, "y": 974},
+            {"x", "y"},
+            {"x", "y"},
+            frame,
+        )
