@@ -14,7 +14,7 @@ from gemini_agent import (
     _record_strategy_progress,
     _validate_strategy_actions,
 )
-from screen_vision import CursorAction, ScreenFrame, _validated_point
+from screen_vision import CursorAction, ScreenFrame, _build_cursor_prompt, _validated_point
 
 
 def make_context() -> TaskContext:
@@ -190,3 +190,24 @@ def test_out_of_bounds_coordinate_error_includes_capture_dimensions() -> None:
         )
 
 
+
+def test_visual_prompt_is_loaded_from_markdown_and_uses_current_capture_bounds() -> None:
+    frame = ScreenFrame(
+        png_bytes=b"",
+        width=1366,
+        height=768,
+        geometry=ScreenGeometry(0, 0, 1366, 768),
+        captured_at=time.time(),
+    )
+    prompt = _build_cursor_prompt(
+        frame,
+        "abre paint",
+        ("intento anterior", "captura actual"),
+        "ETAPA DE PRUEBA",
+    )
+    assert "1366 × 768" in prompt
+    assert "0 a 1365" in prompt
+    assert "0 a 767" in prompt
+    assert '"abre paint"' in prompt
+    assert "ETAPA DE PRUEBA" in prompt
+    assert "{{SCREEN_WIDTH}}" not in prompt
