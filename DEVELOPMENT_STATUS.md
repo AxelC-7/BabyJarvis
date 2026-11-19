@@ -199,6 +199,22 @@ los importa.
   sintético de 1x1 generado en memoria: respuesta `Red`. No se capturó ni envió
   el escritorio; no se ejecutaron acciones de Windows.
 
+## Corrección en revisión: verificador independiente
+
+- La rama `fix/verified-gemini-verifier` incorpora una selección del modelo
+  verificador basada exclusivamente en resultados recientes que hayan superado
+  las pruebas de texto e imagen.
+- Antes de iniciar una tarea, el runtime exige que exista al menos un modelo
+  compatible distinto del modelo principal. Si no existe, se detiene antes de
+  capturar la pantalla o ejecutar acciones y solicita realizar el diagnóstico
+  desde la pestaña «Modelos Gemini».
+- Se agregaron pruebas unitarias para selección del verificador y bloqueo previo
+  a la automatización. Estas pruebas están pendientes de ejecución en Windows;
+  no se afirma aún que la corrección haya pasado el conjunto completo.
+- La configuración histórica `gemini-2.5-flash` no debe considerarse válida
+  para esta cuenta: los diagnósticos anteriores registraron HTTP 404. El modelo
+  configurado solo se usa como verificador si superó una prueba multimodal reciente.
+
 ## Próximo objetivo
 
 1. Repetir la inspección visual de la GUI en Windows con un medio que permita
