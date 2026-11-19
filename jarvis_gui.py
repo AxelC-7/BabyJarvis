@@ -449,7 +449,7 @@ class JarvisApp:
             )
         else:
             heading = (
-                f"Lote {event.batch_id[:8]} — permitido por la política actual\n\n"
+                f"Lote {event.batch_id[:8]} — modo autónomo: ejecución automática\n\n"
             )
         self.proposal.insert("1.0", heading + event.summary)
         self.proposal.configure(state="disabled")
@@ -463,7 +463,7 @@ class JarvisApp:
         self._append_activity(
             "Gemini propuso un lote que requiere autorización."
             if event.requires_authorization
-            else "Gemini propuso un lote permitido por la política actual."
+            else "Gemini propuso un lote para ejecución autónoma."
         )
 
     def _set_authorization_buttons(self, enabled: bool) -> None:
