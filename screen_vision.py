@@ -313,7 +313,7 @@ def suggest_cursor_action(
 No saltes etapas: el programa valida y bloquea cualquier estrategia fuera de orden.
 Si un intento anterior falló, observa la captura nueva y cambia solo a la siguiente etapa.
 Devuelve exactamente uno de estos formatos JSON:
-- Para continuar: {{"status":"continue","actions":[...]}}, con entre 1 y 4 acciones ejecutables.
+- Para continuar: {{"status":"continue","actions":[...]}}, con una acción ejecutable; se permiten dos únicamente cuando la primera mueve el cursor y la segunda hace clic.
 - Para señalar éxito: {{"status":"success","message":"..."}}, sin campo actions.
 - Para señalar un error u obstáculo: {{"status":"error","message":"..."}}, sin campo actions.
 success solo es una hipótesis que el programa verificará con otra captura.
@@ -336,7 +336,7 @@ Acciones ejecutables permitidas:
 Máximo 4 teclas por combinación; teclas: A-Z, 0-9, BACKSPACE, TAB, ENTER, SHIFT, CTRL,
 ALT, ESC, SPACE, PAGEUP, PAGEDOWN, END, HOME, ARROWLEFT, ARROWUP, ARROWRIGHT,
 ARROWDOWN, DELETE, WINDOWS, F1-F12.
-Devuelve un lote breve y deja que el programa capture de nuevo tras cada lote.
+Devuelve un JSON mínimo y breve. Prioriza exactamente una acción por respuesta. Solo combina move + click cuando sea necesario posicionar el cursor antes del clic. El programa capturará de nuevo tras cada lote.
 Nunca incluyas aprobaciones, código ejecutable ni campos fuera del formato indicado.
 Solo puedes escribir comandos de lanzamiento sencillos y no destructivos cuando ya fallaron
 el cursor y el mecanismo visual de lanzamiento. El comando debe corresponder directamente
@@ -366,7 +366,7 @@ Historial reciente: {json.dumps(history[-4:], ensure_ascii=False)}
     try:
         payload = json.loads(output)
     except json.JSONDecodeError as exc:
-        raise RuntimeError("Gemini devolvió una acción de cursor con formato inválido.") from exc
+        raise RuntimeError(f"Gemini devolvió JSON incompleto o inválido (longitud={len(output)}, posición={exc.pos}): {exc.msg}. No se ejecutará ninguna acción.") from exc
     if not isinstance(payload, dict):
         raise RuntimeError("Gemini devolvió una acción de cursor con formato inválido.")
     status = payload.get("status")
