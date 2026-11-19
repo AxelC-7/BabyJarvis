@@ -752,6 +752,34 @@ def _execute_action(action: CursorAction, frame: ScreenFrame, context: TaskConte
     raise ValueError(f"Accion no permitida: {action.action!r}.")
 
 
+def _verification_models() -> tuple[str, ...]:
+    """Choose an independent verifier, preferring models proven multimodally."""
+    compatible = tuple(
+        dict.fromkeys(
+            result.model
+            for result in MODEL_MANAGER.fresh_results()
+            if result.model != MODEL
+        )
+    )
+    if VERIFICATION_MODEL in compatible:
+        return (VERIFICATION_MODEL,) + tuple(
+            model for model in compatible if model != VERIFICATION_MODEL
+        )
+    if MODEL_MANAGER.results_are_fresh():
+        if compatible:
+            return compatible
+        raise RuntimeError(
+            "No hay un modelo verificador independiente que haya superado "
+            "las pruebas de texto e imagen. Ejecuta el diagnóstico de modelos "
+            "Gemini y selecciona un modelo principal distinto."
+        )
+    if VERIFICATION_MODEL == MODEL:
+        raise RuntimeError(
+            "El modelo verificador debe ser distinto del modelo principal."
+        )
+    return (VERIFICATION_MODEL,)
+
+
 def _verify_task(client: genai.Client, task: str, context: TaskContext) -> tuple[bool, str]:
     frame = context.capture() if context.capture is not None else capture_screen()
     context.geometry = frame.geometry
@@ -769,7 +797,7 @@ Objetivo del usuario: {json.dumps(task, ensure_ascii=False)}"""
             response_mime_type="application/json", temperature=0, max_output_tokens=200
         ),
         context,
-        models=(VERIFICATION_MODEL,),
+        models=_verification_models(),
     )
     try:
         result = json.loads((response.text or "").strip())
