@@ -55,6 +55,8 @@ Si la API, el modelo o una respuesta estructurada falla, BabyJarvis detiene el s
 
 La verificación visual también utiliza `gemini-3.8-flash`; no se necesita un segundo modelo ni una segunda API Key.
 
+La estrategia de escritorio está controlada por el programa: primero cursor, después Win+R, luego CMD/PowerShell y finalmente `ShellExecuteW` de `shell32.dll`. El último recurso nativo está limitado a Paint, Bloc de notas, Calculadora y Explorador. Si falla la API o no se puede verificar el resultado, se detiene todo.
+
 ## Primera prueba segura en el notebook
 
 Hazla después de iniciar la aplicación y confirmar que la API Key local está configurada:

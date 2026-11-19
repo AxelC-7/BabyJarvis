@@ -9,7 +9,7 @@ Esta sección refleja la implementación más reciente y prevalece sobre las not
 - Si falla la API, el modelo, el formato de respuesta o la validación de coordenadas, el servicio se detiene, descarta la cola y requiere reiniciar la aplicación.
 - El orden de estrategia se valida en código: clic con cursor y nueva captura antes de permitir Win+R; CMD/PowerShell solo después de intentar Win+R.
 - Las coordenadas fuera de la captura se rechazan con sus dimensiones; nunca se ajustan automáticamente.
-- En consola solo se permiten lanzamientos simples `start <aplicacion>` o `Start-Process <aplicacion>`. No se implementó una acción genérica de API nativa; si CMD/PowerShell falla, la tarea se detiene.
+- En consola solo se permiten lanzamientos simples de Paint, Bloc de notas, Calculadora o Explorador. Como último recurso, `ShellExecuteW` de `shell32.dll` puede abrir esas mismas aplicaciones; no se usa `user32.dll` para crear procesos. Si la API nativa falla o el objetivo no está en la lista permitida, la tarea se detiene.
 - Se añadieron pruebas unitarias para la jerarquía, la política de modelo único y la parada fatal. La ejecución de CI de este commit queda pendiente de confirmación.
 
 ## Estado general

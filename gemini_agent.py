@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import ctypes
 import json
 import logging
 import math
@@ -53,6 +54,12 @@ MAX_ACTIONS = int(os.getenv("MAX_SCREEN_ACTIONS", "8"))
 MAX_TASK_DURATION_SECONDS = float(os.getenv("MAX_TASK_DURATION_SECONDS", "180"))
 AUTHORIZATION_TIMEOUT_SECONDS = 30.0
 MAX_DECISION_ROUNDS = 8
+SAFE_LAUNCH_TARGETS = frozenset({
+    "mspaint", "mspaint.exe",
+    "notepad", "notepad.exe",
+    "calc", "calc.exe",
+    "explorer", "explorer.exe",
+})
 
 LOGGER = logging.getLogger("gemini_agent")
 MODEL_MANAGER = GeminiModelManager()
@@ -103,6 +110,8 @@ class TaskContext:
     win_r_attempted: bool = False
     shell_opened: bool = False
     shell_launcher_pending: bool = False
+    shell_command_pending: bool = False
+    shell_command_attempted: bool = False
 
 
 @dataclass
@@ -565,16 +574,31 @@ def _is_windows_run_shortcut(action: CursorAction) -> bool:
 
 
 def _validate_strategy_actions(actions: list[CursorAction], context: TaskContext) -> None:
-    """Enforce the cursor -> Win+R -> CMD/PowerShell order in code."""
+    """Enforce the cursor -> Win+R -> CMD/PowerShell -> native API order."""
     if not context.cursor_attempted:
-        if not actions or actions[0].action not in {"click", "double_click"}:
+        click_index = next(
+            (
+                index
+                for index, action in enumerate(actions)
+                if action.action in {"click", "double_click"}
+            ),
+            None,
+        )
+        if click_index is None:
             raise GeminiFatalError(
-                "La primera acción debe ser un clic o doble clic visible con el cursor."
+                "El primer lote debe ejecutar un clic o doble clic visible con el cursor."
+            )
+        if any(
+            action.action in {"write", "press"}
+            for action in actions[:click_index]
+        ):
+            raise GeminiFatalError(
+                "No se permite escribir ni usar teclas antes del primer clic con el cursor."
             )
         if any(
             action.action == "press"
             and any(key.casefold() != "enter" for key in action.keys)
-            for action in actions[1:]
+            for action in actions[click_index + 1:]
         ):
             raise GeminiFatalError(
                 "No se permiten atajos de teclado en el primer lote; primero debe observarse el clic."
@@ -587,19 +611,33 @@ def _validate_strategy_actions(actions: list[CursorAction], context: TaskContext
         text = action.text.strip()
         lowered = text.casefold()
         is_shell_launcher = lowered in {"cmd", "powershell", "pwsh"}
+        command_match = re.fullmatch(
+            r"(?i)(?:start|start-process)\s+([A-Za-z0-9_.-]+)",
+            text,
+        )
         is_shell_command = bool(re.match(r"(?i)^(?:start|start-process)\b", text))
         if is_shell_launcher and not context.win_r_attempted:
             raise GeminiFatalError("CMD/PowerShell fue propuesto antes de intentar Win+R.")
         if is_shell_command:
             if not context.shell_opened:
-                raise GeminiFatalError("Se rechazó un comando porque CMD/PowerShell no fue abierto mediante Win+R.")
-            if not re.fullmatch(r"(?i)(?:start|start-process)\s+[A-Za-z0-9_.-]+", text):
-                raise GeminiFatalError("Solo se permiten comandos simples start <aplicacion> o Start-Process <aplicacion>.")
+                raise GeminiFatalError(
+                    "Se rechazó un comando porque CMD/PowerShell no fue abierto mediante Win+R."
+                )
+            if command_match is None or command_match.group(1).casefold() not in SAFE_LAUNCH_TARGETS:
+                raise GeminiFatalError(
+                    "La consola solo permite lanzar Paint, Bloc de notas, Calculadora o Explorador."
+                )
+            if context.shell_command_pending or context.shell_command_attempted:
+                raise GeminiFatalError("Solo se permite un comando de consola y debe confirmarse con Enter.")
         elif context.shell_opened:
-            raise GeminiFatalError("Con CMD/PowerShell abierto solo se permite un comando simple de lanzamiento.")
+            raise GeminiFatalError(
+                "Con CMD/PowerShell abierto solo se permite un comando simple de lanzamiento."
+            )
         elif context.win_r_attempted and not is_shell_launcher:
-            if not re.fullmatch(r"[A-Za-z0-9_.:/\\-]+", text):
-                raise GeminiFatalError("En Ejecutar solo se permite un nombre o ruta simple de aplicación.")
+            if lowered not in SAFE_LAUNCH_TARGETS:
+                raise GeminiFatalError(
+                    "Ejecutar solo permite Paint, Bloc de notas, Calculadora o Explorador."
+                )
 
 
 def _record_strategy_progress(action: CursorAction, context: TaskContext) -> None:
@@ -608,11 +646,36 @@ def _record_strategy_progress(action: CursorAction, context: TaskContext) -> Non
         context.cursor_attempted = True
     if _is_windows_run_shortcut(action):
         context.win_r_attempted = True
-    if action.action == "write" and context.win_r_attempted and action.text.strip().casefold() in {"cmd", "powershell", "pwsh"}:
+    if (
+        action.action == "write"
+        and context.win_r_attempted
+        and action.text.strip().casefold() in {"cmd", "powershell", "pwsh"}
+    ):
         context.shell_launcher_pending = True
-    if action.action == "press" and "enter" in {key.casefold() for key in action.keys} and context.shell_launcher_pending:
+    if (
+        action.action == "press"
+        and "enter" in {key.casefold() for key in action.keys}
+        and context.shell_launcher_pending
+    ):
         context.shell_opened = True
         context.shell_launcher_pending = False
+    if (
+        action.action == "write"
+        and context.shell_opened
+        and re.fullmatch(
+            r"(?i)(?:start|start-process)\s+[A-Za-z0-9_.-]+",
+            action.text.strip(),
+        )
+    ):
+        context.shell_command_pending = True
+    if (
+        action.action == "press"
+        and "enter" in {key.casefold() for key in action.keys}
+        and context.shell_command_pending
+    ):
+        context.shell_command_attempted = True
+        context.shell_command_pending = False
+
 
 
 def _execute_action(action: CursorAction, frame: ScreenFrame, context: TaskContext) -> str:
@@ -702,6 +765,67 @@ Objetivo del usuario: {json.dumps(task, ensure_ascii=False)}"""
     return completed, evidence
 
 
+def _native_application_for_task(task: str) -> str | None:
+    """Resolve a narrow set of built-in Windows apps for the final native fallback."""
+    normalized = task.casefold()
+    for keywords, executable in (
+        (("paint", "mspaint"), "mspaint.exe"),
+        (("notepad", "bloc de notas"), "notepad.exe"),
+        (("calculadora", "calculator"), "calc.exe"),
+        (("explorador de archivos", "file explorer", "explorer"), "explorer.exe"),
+    ):
+        if any(keyword in normalized for keyword in keywords):
+            return executable
+    return None
+
+
+def _launch_native_application(task: str, context: TaskContext) -> str:
+    """Use ShellExecuteW (shell32.dll), not user32.dll, for a whitelisted final launch."""
+    _check_task(context)
+    executable = _native_application_for_task(task)
+    if executable is None:
+        raise GeminiFatalError(
+            "El objetivo no coincide con una aplicación Windows permitida para el último recurso nativo."
+        )
+    if os.name != "nt":
+        raise GeminiFatalError("El último recurso ShellExecuteW solo está disponible en Windows.")
+    shell32 = ctypes.WinDLL("shell32", use_last_error=True)
+    shell32.ShellExecuteW.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_wchar_p,
+        ctypes.c_wchar_p,
+        ctypes.c_wchar_p,
+        ctypes.c_wchar_p,
+        ctypes.c_int,
+    ]
+    shell32.ShellExecuteW.restype = ctypes.c_void_p
+    result = shell32.ShellExecuteW(None, "open", executable, None, None, 1)
+    if not result or int(result) <= 32:
+        raise GeminiFatalError(
+            f"ShellExecuteW no pudo abrir {executable}; resultado={result!r}, "
+            f"winerror={ctypes.get_last_error()}."
+        )
+    LOGGER.info("Último recurso nativo ejecutado: ShellExecuteW(%s).", executable)
+    _task_activity(context, f"Último recurso nativo: ShellExecuteW abrió {executable}.")
+    return executable
+
+
+def _native_fallback_and_verify(
+    client: genai.Client,
+    task: str,
+    context: TaskContext,
+) -> bool:
+    executable = _launch_native_application(task, context)
+    _sleep_for_task(1.5, context)
+    completed, evidence = _verify_task(client, task, context)
+    if not completed:
+        raise GeminiFatalError(
+            f"ShellExecuteW abrió {executable}, pero Gemini no pudo confirmar el objetivo; se detiene todo."
+        )
+    _task_activity(context, f"Resultado verificado tras el último recurso nativo: {evidence}")
+    return True
+
+
 def run_task(
     client: genai.Client,
     task: str,
@@ -769,8 +893,8 @@ def run_task(
                 )
             last_error_stage = current_error_stage
             LOGGER.warning("Gemini informo un obstaculo; se evaluara la siguiente etapa permitida: %s", _redact_sensitive(decision.message))
-            if context.shell_opened:
-                raise GeminiFatalError("CMD/PowerShell no resolvió la tarea; no existe una acción nativa validada. Se detiene todo.")
+            if context.shell_opened and context.shell_command_attempted:
+                return _native_fallback_and_verify(client, task, context)
             if not context.cursor_attempted:
                 raise GeminiFatalError("Gemini no pudo identificar un control visible para el primer intento con el cursor.")
             history.append(
@@ -788,6 +912,8 @@ def run_task(
                 LOGGER.info("Exito confirmado mediante verificacion visual independiente.")
                 _task_activity(context, f"Resultado verificado visualmente: {evidence}")
                 return True
+            if context.shell_command_attempted:
+                return _native_fallback_and_verify(client, task, context)
             history.append(
                 "Gemini informo success, pero la verificacion visual independiente "
                 "no confirmo el objetivo. El método anterior no consiguió el objetivo. "

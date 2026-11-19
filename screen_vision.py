@@ -302,11 +302,11 @@ def suggest_cursor_action(
     if not cursor_attempted:
         strategy_instructions = "ETAPA 1: cursor obligatorio. El primer lote debe contener un clic o doble clic sobre un control visible. No uses Win+R ni consola."
     elif not win_r_attempted:
-        strategy_instructions = "ETAPA 2: ya se ejecutó un clic con el cursor y se observó una captura nueva. Si el objetivo no se cumplió, usa Win+R. No abras CMD/PowerShell todavía."
+        strategy_instructions = "ETAPA 2: ya se ejecutó un clic con el cursor y se observó una captura nueva. Si el objetivo no se cumplió, usa Win+R para lanzar solo mspaint, notepad, calc o explorer. No abras CMD/PowerShell todavía."
     elif not shell_opened:
         strategy_instructions = "ETAPA 3: Win+R ya se ejecutó. Si no funcionó, abre CMD o PowerShell mediante Win+R, escribe únicamente cmd o powershell y pulsa Enter. Espera una captura nueva antes de escribir un comando."
     else:
-        strategy_instructions = "ETAPA 4: CMD/PowerShell está abierto. Solo puedes ejecutar start <aplicacion> o Start-Process <aplicacion>, sin argumentos, tuberías, scripts ni comandos encadenados. Si no funciona, devuelve status=error."
+        strategy_instructions = "ETAPA 4: CMD/PowerShell está abierto. Solo puedes ejecutar start <aplicacion> o Start-Process <aplicacion> para mspaint, notepad, calc o explorer, sin argumentos, tuberías, scripts ni comandos encadenados. Si no funciona, devuelve status=error."
 
     prompt = f"""Opera Windows solo a partir de la captura actual.
 {strategy_instructions}

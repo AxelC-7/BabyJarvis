@@ -11,6 +11,7 @@ from gemini_agent import (
     GeminiFatalError,
     TaskContext,
     _generate_single_model,
+    _native_application_for_task,
     _record_strategy_progress,
     _validate_strategy_actions,
 )
@@ -36,6 +37,17 @@ def test_first_strategy_requires_a_real_cursor_click() -> None:
             [CursorAction("press", keys=("WINDOWS", "R"))],
             context,
         )
+
+
+def test_first_cursor_batch_may_move_before_click() -> None:
+    context = make_context()
+    _validate_strategy_actions(
+        [
+            CursorAction("move", x=10, y=10),
+            CursorAction("click", x=20, y=20),
+        ],
+        context,
+    )
 
 
 def test_first_batch_cannot_use_windows_shortcuts_after_a_click_without_new_capture() -> None:
@@ -177,3 +189,20 @@ def test_out_of_bounds_coordinate_error_includes_capture_dimensions() -> None:
             {"x", "y"},
             frame,
         )
+
+
+@pytest.mark.parametrize(
+    ("task", "expected"),
+    [
+        ("abre paint con el cursor", "mspaint.exe"),
+        ("abre el bloc de notas", "notepad.exe"),
+        ("abre la calculadora", "calc.exe"),
+        ("abre el explorador de archivos", "explorer.exe"),
+    ],
+)
+def test_native_fallback_only_maps_supported_windows_apps(task: str, expected: str) -> None:
+    assert _native_application_for_task(task) == expected
+
+
+def test_native_fallback_does_not_guess_unknown_applications() -> None:
+    assert _native_application_for_task("abre una aplicación desconocida") is None
