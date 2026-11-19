@@ -563,7 +563,7 @@ def ask_gemini(
         response_text = (response.text or "").strip()
         _task_activity(
             context,
-            "RESPUESTA COMPLETA DE GEMINI (salida recibida):\\n"
+            "RESPUESTA COMPLETA DE GEMINI (salida recibida):\n"
             + _redact_sensitive(response_text),
         )
         return response_text
