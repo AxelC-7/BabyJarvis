@@ -177,7 +177,8 @@ def _is_saturation_error(error: errors.APIError) -> bool:
     return code in {429, 503} or any(
         marker in message
         for marker in (
-            "unavaila      "high demand",
+            "unavailable",
+            "high demand",
             "overloaded",
             "resource_exhausted",
             "too many requests",
