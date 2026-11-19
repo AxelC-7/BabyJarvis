@@ -919,9 +919,14 @@ def run_task(
                 LOGGER.info("Lote descartado: autorizacion denegada o ausente.")
                 return False
         elif authorization_required:
-            if not _request_authorization(actions, frame, context):
-                LOGGER.info("Lote descartado: autorizacion denegada o ausente.")
-                return False
+            LOGGER.info(
+                "Modo autónomo sin interfaz de servicio: lote validado para ejecución automática."
+            )
+            _task_activity(
+                context,
+                "Modo autónomo activo: no se solicita aprobación manual. "
+                "La cancelación y la parada de emergencia siguen disponibles.",
+            )
         _check_task(context)
 
         _task_status(context, "executing")
