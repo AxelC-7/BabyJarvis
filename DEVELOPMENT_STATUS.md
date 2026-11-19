@@ -1,5 +1,15 @@
 # Estado de desarrollo de Jarvis
 
+## Actualización — prompt visual externo
+
+- El prompt principal de percepción y control visual vive en `prompts/desktop_agent.md`.
+- `screen_vision.py` lo lee desde disco en cada decisión y sustituye marcadores con la etapa, solicitud, historial y dimensiones de la captura actual.
+- Si el archivo falta o está incompleto, la decisión falla de forma segura.
+- El Markdown exige coordenadas dentro de los límites exactos de la captura y prohíbe inventar, escalar o extrapolar posiciones.
+- La validación determinista de coordenadas en Python permanece intacta; el prompt no sustituye las barreras del código.
+- Se añadió una prueba automatizada del cargador y de los límites dinámicos de coordenadas.
+
+
 ## Configuración activa — 19 de noviembre de 2026
 
 Esta sección refleja la implementación más reciente y prevalece sobre las notas históricas de modelos y reintentos que aparecen más abajo.
