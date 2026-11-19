@@ -144,7 +144,7 @@ class JarvisApp:
             command=self._cancel_model_tests,
             state="disabled",
         ).pack(side="left", padx=3)
-        self.model_progress_text = tk.StringVar(value=f"Modelo único fijado: {self.service.selected_model}. La búsqueda solo consulta los modelos disponibles; no cambia el modelo activo.")
+        self.model_progress_text = tk.StringVar(value=f"Modelo principal actual: {self.service.selected_model}. Busca modelos y selecciona cuál quieres utilizar.")
         ttk.Label(self.models_tab, textvariable=self.model_progress_text).grid(
             row=1, column=0, sticky="ew", padx=10
         )
@@ -200,7 +200,7 @@ class JarvisApp:
         )
         self.select_primary_button.grid(row=0, column=2, padx=4)
         self.selected_model_text = tk.StringVar(
-            value=f"Modelo fijo: {self.service.selected_model}"
+            value=f"Modelo principal: {self.service.selected_model}"
         )
         ttk.Label(selection, textvariable=self.selected_model_text).grid(
             row=1, column=0, columnspan=3, sticky="w", padx=4, pady=(6, 0)
@@ -238,7 +238,7 @@ class JarvisApp:
             self.model_table.insert(
                 "", tk.END, values=(model, status, duration, reason)
             )
-        available = list(dict.fromkeys(names))
+        available = list(dict.fromkeys(self._discovered_models))
         self.primary_model_combo.configure(
             values=available,
             state="readonly" if available else "disabled",
