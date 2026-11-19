@@ -65,7 +65,7 @@ Puedes editar el Markdown para ajustar instrucciones y reglas sin modificar `scr
 
 Gemini no abre archivos locales directamente: BabyJarvis lee el `.md` y transmite su contenido en la solicitud.
 
-La validación determinista de coordenadas en Python permanece activa. El prompt refuerza los límites exactos de la imagen, pero nunca sustituye esa barrera.
+Gemini devuelve coordenadas normalizadas de 0 a 1000 por eje. `screen_vision.py` las convierte a píxeles de la captura mediante una fórmula determinista y valida el resultado antes de crear acciones; las capas posteriores reciben únicamente píxeles. No se ajustan valores fuera del rango normalizado.
 
 ## Primera prueba segura en el notebook
 
