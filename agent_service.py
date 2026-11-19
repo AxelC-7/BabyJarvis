@@ -11,7 +11,6 @@ from enum import Enum
 from typing import Callable
 
 from gemini_agent import (
-    AUTHORIZATION_TIMEOUT_SECONDS,
     MAX_TASK_DURATION_SECONDS,
     TaskCancelled,
     TaskContext,
@@ -154,7 +153,6 @@ class AgentService:
         *,
         client_factory: Callable[[], object] = create_client,
         task_runner: Callable[..., bool] = run_task,
-        authorization_timeout: float = AUTHORIZATION_TIMEOUT_SECONDS,
         task_duration: float = MAX_TASK_DURATION_SECONDS,
         model_manager=MODEL_MANAGER,
     ) -> None:
@@ -163,7 +161,6 @@ class AgentService:
         self._authorization_responses: queue.Queue[_AuthorizationResponse] = queue.Queue()
         self._client_factory = client_factory
         self._task_runner = task_runner
-        self._authorization_timeout = authorization_timeout
         self._task_duration = task_duration
         self._model_manager = model_manager
         self._shutdown = threading.Event()
@@ -393,11 +390,8 @@ class AgentService:
         context: TaskContext,
     ) -> bool:
         batch_id = uuid.uuid4().hex
-        expires_at = (
-            min(time.monotonic() + self._authorization_timeout, context.deadline)
-            if requires_authorization
-            else None
-        )
+        # La aprobación no caduca por tiempo; sigue ligada a este lote exacto.
+        expires_at = None
         self.events.put(StatusEvent(AgentState.PROPOSED, task.task_id))
         summary = _authorization_summary(list(actions), frame).split("\n", 1)[-1]
         title = (
@@ -422,11 +416,11 @@ class AgentService:
             self._active_batch_id = batch_id
         self.events.put(StatusEvent(AgentState.WAITING_AUTHORIZATION, task.task_id))
         self._emit_activity(task.task_id, "Esperando autorización para el lote mostrado.")
+        wait_started = time.monotonic()
         try:
-            while expires_at is not None and time.monotonic() < expires_at:
-                from gemini_agent import _check_task
-
-                _check_task(context, respect_pause=False)
+            while not self._shutdown.is_set():
+                if context.cancelled.is_set():
+                    raise TaskCancelled("La tarea fue cancelada mientras esperaba autorización.")
                 if context.paused.is_set():
                     time.sleep(0.05)
                     continue
@@ -434,14 +428,10 @@ class AgentService:
                     response = self._authorization_responses.get(timeout=0.05)
                 except queue.Empty:
                     continue
-                if (
-                    response.batch_id != batch_id
-                    or response.actions != actions
-                    or time.monotonic() >= expires_at
-                ):
+                if response.batch_id != batch_id or response.actions != actions:
                     self._emit_activity(
                         task.task_id,
-                        "Se ignoró una autorización vencida o asociada a otro lote.",
+                        "Se ignoró una autorización asociada a otro lote.",
                     )
                     continue
                 self._emit_activity(
@@ -450,10 +440,12 @@ class AgentService:
                 )
                 return response.approved
         finally:
+            # La espera humana no consume el presupuesto de ejecución de la tarea.
+            context.deadline += time.monotonic() - wait_started
             with self._lock:
                 if self._active_batch_id == batch_id:
                     self._active_batch_id = None
-        self._emit_activity(task.task_id, "La autorización venció; el lote se descartó.")
+        self._emit_activity(task.task_id, "La tarea se detuvo antes de recibir autorización; el lote se descartó.")
         return False
 
     def _worker_loop(self) -> None:
