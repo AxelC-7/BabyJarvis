@@ -415,3 +415,182 @@ abre paint con el cursor
 2026-11-19 17:10:00 INFO [tarea 79c9b0ac] Acción 1/8: Teclas presionadas: WINDOWS+R.
 2026-11-19 17:10:00 INFO GUI: Acción 1/8: Teclas presionadas: WINDOWS+R.
 2026-11-19 17:10:01 INFO GUI: Parada de emergencia solicitada.
+2026-11-19 17:42:02 INFO === Inicio de sesión del asistente ===
+2026-11-19 17:42:02 INFO Archivo de registro: C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\agent_debug.log
+2026-11-19 17:42:02 INFO GUI: Archivo de registro persistente: C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\agent_debug.log
+2026-11-19 17:42:02 WARNING Se ignora GEMINI_MODEL=gemini-3.5-flash-lite; BabyJarvis usa exclusivamente gemini-3.8-flash.
+2026-11-19 17:42:10 INFO GUI: Tarea be740467 agregada a la cola.
+2026-11-19 17:42:10 INFO [tarea be740467] ENTRADA DEL USUARIO:
+abre paint
+2026-11-19 17:42:10 INFO [tarea be740467] INICIO DE PROCESAMIENTO: modelo principal=gemini-3.8-flash
+2026-11-19 17:42:10 INFO Inicio de tarea; se omite el texto de la instruccion del registro.
+2026-11-19 17:42:10 INFO GUI: Instrucción agregada a la cola.
+2026-11-19 17:42:10 INFO GUI: ENTRADA DEL USUARIO:
+abre paint
+2026-11-19 17:42:10 INFO GUI: INICIO DE PROCESAMIENTO: modelo principal=gemini-3.8-flash
+2026-11-19 17:42:10 INFO [tarea be740467] Capturando pantalla y consultando a Gemini...
+2026-11-19 17:42:10 INFO GUI: Capturando pantalla y consultando a Gemini...
+2026-11-19 17:42:10 INFO Captura: imagen=1366x768 escritorio=1366x768 origen=(0,0) DPI=per-monitor-v2/96
+2026-11-19 17:42:10 INFO [tarea be740467] Usando exclusivamente Gemini gemini-3.8-flash; sin fallback ni reintentos.
+2026-11-19 17:42:10 INFO Solicitud única a Gemini iniciada: modelo=gemini-3.8-flash
+2026-11-19 17:42:10 INFO GUI: Usando exclusivamente Gemini gemini-3.8-flash; sin fallback ni reintentos.
+2026-11-19 17:42:14 ERROR Fallo definitivo de Gemini: modelo=gemini-3.8-flash tipo=ServerError duracion=3.16s; no habrá reintento ni fallback.
+2026-11-19 17:42:14 ERROR [tarea be740467] Fallo fatal; se detiene el servicio completo:
+GeminiFatalError: Falló la única solicitud a gemini-3.8-flash (ServerError). BabyJarvis se detendrá sin reintentar ni cambiar de modelo.
+TRAZA COMPLETA:
+Traceback (most recent call last):
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 344, in _generate_single_model
+    response = _run_api_call(
+               ^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 326, in _run_api_call
+    raise result
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 309, in invoke
+    result_queue.put((True, operation()))
+                            ^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 345, in <lambda>
+    lambda: client.models.generate_content(model=model, contents=contents, config=config),
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\models.py", line 6204, in generate_content
+    response = self._generate_content_with_continuation(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\models.py", line 6045, in _generate_content_with_continuation
+    response = self._generate_content(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\models.py", line 4573, in _generate_content
+    response = self._api_client.request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\_api_client.py", line 2374, in request
+    response = self._request(http_request, http_options, stream=False)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\_api_client.py", line 2150, in _request
+    return self._retry(self._request_once, http_request, stream)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\tenacity\__init__.py", line 470, in __call__
+    do = self.iter(retry_state=retry_state)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\tenacity\__init__.py", line 371, in iter
+    result = action(retry_state)
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\tenacity\__init__.py", line 413, in exc_check
+    raise retry_exc.reraise()
+          ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\tenacity\__init__.py", line 184, in reraise
+    raise self.last_attempt.result()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\concurrent\futures\_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\concurrent\futures\_base.py", line 401, in __get_result
+    raise self._exception
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\tenacity\__init__.py", line 473, in __call__
+    result = fn(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\_api_client.py", line 2127, in _request_once
+    errors.APIError.raise_for_response(response)
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\errors.py", line 187, in raise_for_response
+    cls.raise_error(response.status_code, response_json, response)
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\errors.py", line 218, in raise_error
+    raise ServerError(status_code, response_json, response)
+google.genai.errors.ServerError: 503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.', 'status': 'UNAVAILABLE'}}
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\agent_service.py", line 545, in _worker_loop
+    succeeded = self._task_runner(client, task.instruction, control=control)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 871, in run_task
+    decision = ask_gemini(client, task, frame, history, context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 415, in ask_gemini
+    return suggest_cursor_action(
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\screen_vision.py", line 349, in suggest_cursor_action
+    output = create_interaction(
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 390, in generate
+    response = _generate_single_model(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 356, in _generate_single_model
+    raise GeminiFatalError(
+gemini_agent.GeminiFatalError: Falló la única solicitud a gemini-3.8-flash (ServerError). BabyJarvis se detendrá sin reintentar ni cambiar de modelo.
+
+2026-11-19 17:42:14 INFO GUI: ERROR: GeminiFatalError: Falló la única solicitud a gemini-3.8-flash (ServerError). BabyJarvis se detendrá sin reintentar ni cambiar de modelo.
+TRAZA COMPLETA:
+Traceback (most recent call last):
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 344, in _generate_single_model
+    response = _run_api_call(
+               ^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 326, in _run_api_call
+    raise result
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 309, in invoke
+    result_queue.put((True, operation()))
+                            ^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 345, in <lambda>
+    lambda: client.models.generate_content(model=model, contents=contents, config=config),
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\models.py", line 6204, in generate_content
+    response = self._generate_content_with_continuation(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\models.py", line 6045, in _generate_content_with_continuation
+    response = self._generate_content(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\models.py", line 4573, in _generate_content
+    response = self._api_client.request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\_api_client.py", line 2374, in request
+    response = self._request(http_request, http_options, stream=False)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\_api_client.py", line 2150, in _request
+    return self._retry(self._request_once, http_request, stream)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\tenacity\__init__.py", line 470, in __call__
+    do = self.iter(retry_state=retry_state)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\tenacity\__init__.py", line 371, in iter
+    result = action(retry_state)
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\tenacity\__init__.py", line 413, in exc_check
+    raise retry_exc.reraise()
+          ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\tenacity\__init__.py", line 184, in reraise
+    raise self.last_attempt.result()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\concurrent\futures\_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\concurrent\futures\_base.py", line 401, in __get_result
+    raise self._exception
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\tenacity\__init__.py", line 473, in __call__
+    result = fn(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\_api_client.py", line 2127, in _request_once
+    errors.APIError.raise_for_response(response)
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\errors.py", line 187, in raise_for_response
+    cls.raise_error(response.status_code, response_json, response)
+  File "C:\Users\AXEL\AppData\Local\Programs\Python\Python311\Lib\site-packages\google\genai\errors.py", line 218, in raise_error
+    raise ServerError(status_code, response_json, response)
+google.genai.errors.ServerError: 503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.', 'status': 'UNAVAILABLE'}}
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\agent_service.py", line 545, in _worker_loop
+    succeeded = self._task_runner(client, task.instruction, control=control)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 871, in run_task
+    decision = ask_gemini(client, task, frame, history, context)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 415, in ask_gemini
+    return suggest_cursor_action(
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\screen_vision.py", line 349, in suggest_cursor_action
+    output = create_interaction(
+             ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 390, in generate
+    response = _generate_single_model(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AXEL\Documents\VsCodeProyects\Jarvis\gemini_agent.py", line 356, in _generate_single_model
+    raise GeminiFatalError(
+gemini_agent.GeminiFatalError: Falló la única solicitud a gemini-3.8-flash (ServerError). BabyJarvis se detendrá sin reintentar ni cambiar de modelo.
+
