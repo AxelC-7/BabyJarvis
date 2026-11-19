@@ -445,7 +445,7 @@ class JarvisApp:
         if event.requires_authorization:
             heading = (
                 f"Lote {event.batch_id[:8]} — requiere autorización\n"
-                "La aprobación aplica solo a estas acciones y caduca.\n\n"
+                "La aprobación no caduca automáticamente y solo aplica a este lote.\n\n"
             )
         else:
             heading = (
