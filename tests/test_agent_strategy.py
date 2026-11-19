@@ -183,7 +183,7 @@ def test_out_of_range_normalized_coordinate_is_rejected() -> None:
     )
     with pytest.raises(ValueError, match="0..1000"):
         _validated_point(
-            {"x": 68, "y": 1001},
+            {"x": 68, "y": 1001, "coordinate_system": "normalized_1000"},
             {"x", "y"},
             {"x", "y"},
             frame,
@@ -198,9 +198,9 @@ def test_normalized_coordinates_are_converted_to_capture_pixels() -> None:
         geometry=ScreenGeometry(0, 0, 1366, 768),
         captured_at=time.time(),
     )
-    assert _validated_point({"x": 55, "y": 972}, {"x", "y"}, {"x", "y"}, frame) == (75, 745)
-    assert _validated_point({"x": 1000, "y": 1000}, {"x", "y"}, {"x", "y"}, frame) == (1365, 767)
-    assert _validated_point({"x": 0, "y": 0}, {"x", "y"}, {"x", "y"}, frame) == (0, 0)
+    assert _validated_point({"x": 55, "y": 972, "coordinate_system": "normalized_1000"}, {"x", "y"}, {"x", "y", "coordinate_system"}, frame) == (75, 745)
+    assert _validated_point({"x": 1000, "y": 1000, "coordinate_system": "normalized_1000"}, {"x", "y"}, {"x", "y", "coordinate_system"}, frame) == (1365, 767)
+    assert _validated_point({"x": 0, "y": 0, "coordinate_system": "normalized_1000"}, {"x", "y"}, {"x", "y", "coordinate_system"}, frame) == (0, 0)
 
 
 def test_drag_normalized_coordinates_are_converted_independently() -> None:
@@ -212,9 +212,9 @@ def test_drag_normalized_coordinates_are_converted_independently() -> None:
         captured_at=time.time(),
     )
     assert _validated_point(
-        {"start_x": 55, "start_y": 972},
+        {"start_x": 55, "start_y": 972, "coordinate_system": "normalized_1000"},
         {"start_x", "start_y"},
-        {"start_x", "start_y", "end_x", "end_y"},
+        {"start_x", "start_y", "end_x", "end_y", "coordinate_system"},
         frame,
     ) == (75, 745)
 
