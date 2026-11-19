@@ -752,7 +752,34 @@ def _execute_action(action: CursorAction, frame: ScreenFrame, context: TaskConte
     raise ValueError(f"Accion no permitida: {action.action!r}.")
 
 
+def _select_verification_model() -> str:
+    """Choose a distinct model that passed both text and image compatibility probes."""
+    compatible = tuple(
+        result.model
+        for result in MODEL_MANAGER.fresh_results()
+        if result.classification == "compatible_text_image"
+        and result.model != MODEL
+    )
+    if VERIFICATION_MODEL in compatible:
+        return VERIFICATION_MODEL
+    if compatible:
+        selected = compatible[0]
+        LOGGER.warning(
+            "El modelo verificador configurado (%s) no tiene una prueba vigente; "
+            "se usara el modelo compatible %s.",
+            VERIFICATION_MODEL,
+            selected,
+        )
+        return selected
+    raise RuntimeError(
+        "No hay un modelo verificador independiente con compatibilidad vigente "
+        "para texto e imagen. Ejecuta el diagnostico de modelos Gemini y "
+        "selecciona un modelo distinto del principal."
+    )
+
+
 def _verify_task(client: genai.Client, task: str, context: TaskContext) -> tuple[bool, str]:
+    verification_model = _select_verification_model()
     frame = context.capture() if context.capture is not None else capture_screen()
     context.geometry = frame.geometry
     width, height = frame.width, frame.height
@@ -769,7 +796,7 @@ Objetivo del usuario: {json.dumps(task, ensure_ascii=False)}"""
             response_mime_type="application/json", temperature=0, max_output_tokens=200
         ),
         context,
-        models=(VERIFICATION_MODEL,),
+        models=(verification_model,),
     )
     try:
         result = json.loads((response.text or "").strip())
@@ -787,8 +814,8 @@ Objetivo del usuario: {json.dumps(task, ensure_ascii=False)}"""
     if result["completed"] and not evidence:
         LOGGER.warning("El verificador no devolvio evidencia; no se acepta como exito.")
     LOGGER.info(
-        "Verificacion visual con modelo distinto (%s): completed=%s",
-        VERIFICATION_MODEL,
+        "Verificacion visual con modelo distinto y validado (%s): completed=%s",
+        verification_model,
         completed,
     )
     return completed, evidence
