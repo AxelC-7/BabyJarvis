@@ -51,13 +51,13 @@ LOG_PATH = BASE_DIR / "agent_debug.log"
 MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 VERIFICATION_MODEL = os.getenv("GEMINI_VERIFY_MODEL", "gemini-2.5-flash")
 TIMEOUT_SECONDS = float(os.getenv("GEMINI_TIMEOUT_SECONDS", "60"))
-MAX_ACTIONS = int(os.getenv("MAX_SCREEN_ACTIONS", "8"))
+MAX_ACTIONS = int(os.getenv("MAX_SCREEN_ACTIONS", "24"))
 MAX_TASK_DURATION_SECONDS = float(os.getenv("MAX_TASK_DURATION_SECONDS", "180"))
 AUTHORIZATION_TIMEOUT_SECONDS = 30.0
 MAX_API_ATTEMPTS_PER_MODEL = int(os.getenv("GEMINI_MAX_ATTEMPTS_PER_MODEL", "2"))
 RETRY_INITIAL_DELAY_SECONDS = float(os.getenv("GEMINI_RETRY_DELAY_SECONDS", "1"))
 MAX_RETRY_DELAY_SECONDS = 8.0
-MAX_DECISION_ROUNDS = 10
+MAX_DECISION_ROUNDS = 30
 
 LOGGER = logging.getLogger("gemini_agent")
 MODEL_MANAGER = GeminiModelManager()
@@ -264,8 +264,8 @@ def create_client() -> genai.Client:
         raise ValueError(
             "GEMINI_VERIFY_MODEL debe ser válido y distinto de GEMINI_MODEL."
         )
-    if not 1 <= MAX_ACTIONS <= 30:
-        raise ValueError("MAX_SCREEN_ACTIONS debe estar entre 1 y 30.")
+    if not 1 <= MAX_ACTIONS <= 60:
+        raise ValueError("MAX_SCREEN_ACTIONS debe estar entre 1 y 60.")
     MODEL = MODEL_MANAGER.selected_primary(MODEL)
     return genai.Client(
         api_key=api_key,
@@ -862,7 +862,36 @@ def run_task(
             frame.geometry.left, frame.geometry.top,
             frame.geometry.dpi_awareness, frame.geometry.system_dpi,
         )
-        decision = ask_gemini(client, task, frame, history, context)
+        try:
+            decision = ask_gemini(client, task, frame, history, context)
+        except (ValueError, RuntimeError) as exc:
+            message = _redact_sensitive(str(exc))
+            recoverable_markers = (
+                "coordenadas fuera de la captura",
+                "parámetros de coordenadas",
+                "formato inválido",
+                "formato invalido",
+                "contrato",
+                "lista de acciones",
+            )
+            if not any(marker in message.casefold() for marker in recoverable_markers):
+                raise
+            LOGGER.warning(
+                "Decision visual invalida; se descartaron las acciones y se solicitara "
+                "una nueva observacion: %s",
+                message,
+            )
+            history.append(
+                "La última propuesta fue descartada por validación: "
+                f"{message}. No ejecutes esas coordenadas. Usa la captura NUEVA y "
+                "recalcula desde cero; si el cursor ya falló, cambia de estrategia."
+            )
+            _task_activity(
+                context,
+                "Gemini propuso una acción inválida. Se descartó y se volverá a analizar "
+                "la pantalla con una nueva decisión.",
+            )
+            continue
         actions = decision.actions
         LOGGER.info(
             "Estado propuesto por Gemini: %s; acciones: %s",
@@ -870,9 +899,23 @@ def run_task(
             json.dumps(_redacted_actions(list(actions)), ensure_ascii=False),
         )
         if decision.status == "error":
-            LOGGER.warning("Gemini informo un error terminal; la tarea no se completo.")
-            _task_activity(context, f"Gemini no pudo continuar: {_redact_sensitive(decision.message)}")
-            return False
+            LOGGER.warning(
+                "Gemini informo un obstaculo; se solicitara otra estrategia: %s",
+                _redact_sensitive(decision.message),
+            )
+            history.append(
+                "Gemini encontró un obstáculo: "
+                f"{_redact_sensitive(decision.message)}. No finalices todavía. "
+                "Vuelve a observar la pantalla y prueba el siguiente método de la "
+                "jerarquía: cursor primero; si ya falló, Win+R; después CMD/PowerShell "
+                "con un comando de lanzamiento seguro; por último API nativa de Windows."
+            )
+            _task_activity(
+                context,
+                "Se detectó un obstáculo. BabyJarvis volverá a observar y probar "
+                "una estrategia alternativa.",
+            )
+            continue
         if decision.status == "success":
             _task_status(context, "thinking")
             _task_activity(context, "Comprobando el resultado con una captura nueva...")
@@ -883,8 +926,10 @@ def run_task(
                 return True
             history.append(
                 "Gemini informo success, pero la verificacion visual independiente "
-                "no confirmo el objetivo. Reobserva la pantalla y continua o informa "
-                "el impedimento."
+                "no confirmo el objetivo. El método anterior no consiguió el objetivo. "
+                "Reobserva la pantalla y cambia de estrategia: primero cursor si aún no "
+                "se probó; después Win+R; luego CMD/PowerShell con lanzamiento seguro; "
+                "por último API nativa de Windows. No repitas el mismo clic sin cambios."
             )
             LOGGER.warning(
                 "El estado success de Gemini no fue confirmado; se reanalizara la pantalla."
