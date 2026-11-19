@@ -422,6 +422,45 @@ class AgentRuntimeTests(unittest.TestCase):
         self.assertFalse(result)
         execute.assert_not_called()
 
+    def test_verifier_uses_configured_model_only_when_probe_is_fresh_and_compatible(self) -> None:
+        from gemini_agent import _select_verification_model
+        from gemini_model_manager import ModelDiagnosticResult
+
+        configured = ModelDiagnosticResult(
+            "configured-verifier", "compatible_text_image", 0.2, 0.1, 0.1
+        )
+        fallback = ModelDiagnosticResult(
+            "verified-fallback", "compatible_text_image", 0.2, 0.1, 0.1
+        )
+        with (
+            patch("gemini_agent.MODEL", "primary-model"),
+            patch("gemini_agent.VERIFICATION_MODEL", "configured-verifier"),
+            patch("gemini_agent.MODEL_MANAGER.fresh_results", return_value=[configured, fallback]),
+        ):
+            self.assertEqual(_select_verification_model(), "configured-verifier")
+
+        with (
+            patch("gemini_agent.MODEL", "primary-model"),
+            patch("gemini_agent.VERIFICATION_MODEL", "unprobed-verifier"),
+            patch("gemini_agent.MODEL_MANAGER.fresh_results", return_value=[configured, fallback]),
+        ):
+            self.assertEqual(_select_verification_model(), "configured-verifier")
+
+    def test_verifier_never_uses_primary_or_unverified_configured_model(self) -> None:
+        from gemini_agent import _select_verification_model
+        from gemini_model_manager import ModelDiagnosticResult
+
+        primary = ModelDiagnosticResult(
+            "primary-model", "compatible_text_image", 0.2, 0.1, 0.1
+        )
+        with (
+            patch("gemini_agent.MODEL", "primary-model"),
+            patch("gemini_agent.VERIFICATION_MODEL", "primary-model"),
+            patch("gemini_agent.MODEL_MANAGER.fresh_results", return_value=[primary]),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "No hay un modelo verificador independiente"):
+                _select_verification_model()
+
     def test_success_status_requires_a_fresh_verification(self) -> None:
         decisions = [
             AgentDecision("continue", actions=(CursorAction("move", x=12, y=34),)),
