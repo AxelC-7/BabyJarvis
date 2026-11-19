@@ -944,7 +944,7 @@ def run_task(
                 windows_keys = {"win", "windows", "super", "meta", "leftwin", "rightwin"}
                 if pressed.intersection(windows_keys) and "s" in pressed:
                     _task_activity(context, "Esperando a que Windows Search termine de abrirse...")
-                    _sleep_for_task(1.2, context)
+                    _sleep_for_task(2.0, context)
             _sleep_for_task(0.15, context)
 
     LOGGER.warning("Tarea detenida al alcanzar %s rondas de decision.", MAX_DECISION_ROUNDS)
