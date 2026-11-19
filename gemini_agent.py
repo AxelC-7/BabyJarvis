@@ -625,7 +625,7 @@ def _validate_strategy_actions(actions: list[CursorAction], context: TaskContext
                 )
             if command_match is None or command_match.group(1).casefold() not in SAFE_LAUNCH_TARGETS:
                 raise GeminiFatalError(
-                    "La consola solo permite lanzar Paint, Bloc de notas, Calculadora o Explorador."
+                    "Solo se permiten comandos simples para lanzar Paint, Bloc de notas, Calculadora o Explorador."
                 )
             if context.shell_command_pending or context.shell_command_attempted:
                 raise GeminiFatalError("Solo se permite un comando de consola y debe confirmarse con Enter.")
