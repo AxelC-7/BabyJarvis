@@ -306,7 +306,7 @@ def suggest_cursor_action(
     elif not shell_opened:
         strategy_instructions = "ETAPA 3: Win+R ya se ejecutó. Si no funcionó, abre CMD o PowerShell mediante Win+R, escribe únicamente cmd o powershell y pulsa Enter. Espera una captura nueva antes de escribir un comando."
     else:
-        strategy_instructions = "ETAPA 4: la consola está abierta. Ejecuta únicamente el nombre de la aplicación solicitada mediante un comando simple de lanzamiento apropiado para esta consola. No agregues argumentos, tuberías, scripts ni comandos encadenados. Si no funciona, devuelve status=error."
+        strategy_instructions = "ETAPA 4: la consola está abierta. Ejecuta únicamente `start <nombre_de_aplicacion>` o `Start-Process <nombre_de_aplicacion>`, sustituyendo el marcador por el nombre real solicitado por el usuario. No agregues argumentos, tuberías, scripts ni comandos encadenados. Si no funciona, devuelve status=error."
 
     prompt = f"""Opera Windows solo a partir de la captura actual.
 {strategy_instructions}
