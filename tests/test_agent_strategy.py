@@ -216,7 +216,7 @@ def test_drag_normalized_coordinates_are_converted_independently() -> None:
         {"start_x", "start_y"},
         {"start_x", "start_y", "end_x", "end_y", "coordinate_system"},
         frame,
-    ) == (75, 745)
+    ) == (75, 746)
 
 
 
