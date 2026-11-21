@@ -185,7 +185,7 @@ def test_out_of_range_normalized_coordinate_is_rejected() -> None:
         _validated_point(
             {"x": 68, "y": 1001, "coordinate_system": "normalized_1000"},
             {"x", "y"},
-            {"x", "y"},
+            {"x", "y", "coordinate_system"},
             frame,
         )
 
@@ -198,7 +198,7 @@ def test_normalized_coordinates_are_converted_to_capture_pixels() -> None:
         geometry=ScreenGeometry(0, 0, 1366, 768),
         captured_at=time.time(),
     )
-    assert _validated_point({"x": 55, "y": 972, "coordinate_system": "normalized_1000"}, {"x", "y"}, {"x", "y", "coordinate_system"}, frame) == (75, 745)
+    assert _validated_point({"x": 55, "y": 972, "coordinate_system": "normalized_1000"}, {"x", "y"}, {"x", "y", "coordinate_system"}, frame) == (75, 746)
     assert _validated_point({"x": 1000, "y": 1000, "coordinate_system": "normalized_1000"}, {"x", "y"}, {"x", "y", "coordinate_system"}, frame) == (1365, 767)
     assert _validated_point({"x": 0, "y": 0, "coordinate_system": "normalized_1000"}, {"x", "y"}, {"x", "y", "coordinate_system"}, frame) == (0, 0)
 
